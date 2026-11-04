@@ -10,6 +10,7 @@ fn main() {
         "card_list",
         "card_sign",
         "card_close",
+        "device_call",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)).expect("failed to run tauri-build");
 }

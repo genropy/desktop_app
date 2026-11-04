@@ -133,7 +133,7 @@ th { background: var(--panel); }
         <li>A request carries <code>id</code>; its answer carries the same <code>id</code> with <code>result</code> or <code>error</code>.</li>
         <li>An event carries <code>event</code> and no <code>id</code>.</li>
         <li>A <code>ui</code> line is a request from the sidecar to the shell: open a local window and answer with the same <code>id</code>.</li>
-        <li>At startup the sidecar sends one line with its modules and their methods. The shell uses it to refuse unknown calls.</li>
+        <li>At startup the sidecar sends one line with its modules and their methods. The sidecar itself refuses an unknown module or method with the error code <code>unknown</code>.</li>
       </ul>
     </section>
 
@@ -164,8 +164,16 @@ class Printers(object):
         <tr><td>PLCs and machines</td><td>OPC UA, Modbus TCP/RTU, Siemens S7</td><td><code>asyncua</code>, <code>pymodbus</code>, <code>python-snap7</code></td></tr>
         <tr><td>Sensors</td><td>MQTT</td><td><code>paho-mqtt</code></td></tr>
         <tr><td>Serial and USB</td><td>RS-232/485, HID</td><td><code>pyserial</code>, <code>hidapi</code></td></tr>
+        <tr><td>Watched folders</td><td>FSEvents (macOS), ReadDirectoryChangesW (Windows)</td><td><code>watchdog</code></td></tr>
+        <tr><td>Photos (macOS)</td><td>system picker, PhotoKit</td><td><code>pyobjc</code></td></tr>
+        <tr><td>macOS print panel</td><td>PDFKit print operation</td><td><code>pyobjc</code></td></tr>
       </table></div>
-      <p>First modules: <code>cards</code>, from <code>tessere.py</code> of icond with its logic unchanged, and <code>printers</code>. The Rust <code>card.rs</code> is removed once <code>cards</code> works.</p>
+      <p>Implemented: <code>system</code> and <code>inbox</code>, described in <a class="ref" href="../booklet/genropy-runner.html#s-inbox">the booklet</a>. Next modules, in this order:</p>
+      <ol>
+        <li><code>printers</code>: direct print of a PDF with <code>lp</code> (CUPS, AirPrint printers included) and the macOS print panel through PDFKit. On Windows <code>pywin32</code>.</li>
+        <li><code>photos</code>: the system picker, where the user chooses the photos and the app receives only those. Full library access through PhotoKit needs <code>NSPhotoLibraryUsageDescription</code> in the Info.plist of the bundle.</li>
+        <li><code>cards</code>: <code>tessere.py</code> of icond with its logic unchanged. The Rust <code>card.rs</code> is removed once <code>cards</code> works.</li>
+      </ol>
     </section>
 
     <section class="section"><h3>Packaging</h3>
@@ -202,7 +210,7 @@ class Printers(object):
     <div class="box decision decision-proposed" id="d-shell"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-shell</span></div><div class="question">Which shell hosts the GenroPy page and the sidecar?</div><ol class="options"><li id="d-shell-tauri"><b>Tauri 2</b><p>Built-in per-origin access, small bundle, existing runner.</p></li><li id="d-shell-electron"><b>Electron</b><p>More mature, Chromium everywhere, shell in JavaScript. Access control written by hand.</p></li></ol></div>
     <div class="box decision decision-proposed" id="d-protocol"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-protocol</span></div><div class="question">How do shell and sidecar talk?</div><ol class="options"><li id="d-protocol-stdio"><b>JSON lines on stdin/stdout</b><p>No port opened, the sidecar lives and dies with the app.</p></li><li id="d-protocol-http"><b>Local HTTP or WebSocket</b><p>Easier to debug with curl, but a port on the machine that other processes can reach.</p></li></ol></div>
     <div class="box decision decision-proposed" id="d-modules"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-modules</span></div><div class="question">Which modules may the page use?</div><ol class="options"><li id="d-modules-config"><b>List per origin in config.json</b><p>The shell refuses a call to a module the origin is not granted.</p></li><li id="d-modules-all"><b>All modules for the configured origin</b></li></ol></div>
-    <div class="box decision decision-open" id="d-data-path"><div class="box-head"><span class="tag tag-open">open</span><span class="muted">d-data-path</span></div><div class="question">How does data from a device reach the GenroPy server?</div><ol class="options"><li id="d-data-path-page"><b>Through the page</b><p>The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.</p></li><li id="d-data-path-direct"><b>Sidecar to server</b><p>The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.</p></li></ol></div>
+    <div class="box decision decision-decided" id="d-data-path"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-data-path</span></div><div class="question">How does data from a device reach the GenroPy server?</div><ol class="options"><li id="d-data-path-page" class="chosen"><b>Through the page</b><p>The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.</p></li><li id="d-data-path-direct"><b>Sidecar to server</b><p>The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.</p></li></ol><div class="choice"><b>Choice: Through the page</b><span class="muted"> (GP, 2026-11-04)</span><div>The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.</div></div></div>
     <div class="box decision decision-open" id="d-medical"><div class="box-head"><span class="tag tag-open">open</span><span class="muted">d-medical</span></div><div class="question">Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.</div><ol class="options"><li id="d-medical-no"><b>Not medical device software: data transfer only</b></li><li id="d-medical-yes"><b>Medical device software: certification needed</b></li></ol></div>
   </section><section class="part consequences"><h2>Consequences</h2>
     <ul>

@@ -21,6 +21,22 @@ The menu **Instance → Change URL…** (`Cmd/Ctrl+Shift+U`) reopens the setup p
 { "url": "https://example.com/app" }
 ```
 
+## Python sidecar
+
+Local devices are handled by a Python process started by the runner (`sidecar/`).
+The page calls it with `device_call` and receives its events as `device-event`:
+
+```js
+const T = window.__TAURI__ || window.top.__TAURI__;   // top window from a GenroPy iframe
+await T.core.invoke('device_call', {module: 'system', method: 'ping'});   // 'pong'
+await T.event.listen('device-event', (e) => console.log(e.payload));
+```
+
+- Debug builds run the sources with `uv run --project sidecar python sidecar/main.py`.
+- Release builds freeze it with PyInstaller: `cargo tauri build --config tauri.bundle.json`.
+- Modules: `system` (`ping`, `info`), `inbox` (watched folders, see the booklet).
+- Full description: `xmldocs/booklet/genropy-runner` and `xmldocs/proposal/device-sidecar`.
+
 ## Card signing
 
 Port of `firmatore_mac/tessere.py` (icond, branch `firma-digitale-protocolli`), in `src/card.rs`.
@@ -68,6 +84,7 @@ Not ported from icond: library reload after sleep, detection of readers plugged 
 ## Requirements
 
 - Rust (stable) and the Tauri CLI: `cargo install tauri-cli --version "^2" --locked`
+- `uv`, for the Python sidecar
 - macOS: Xcode command line tools. Windows: WebView2 (preinstalled on Windows 10/11).
 
 ## Commands
@@ -78,7 +95,7 @@ Run from `src-tauri/`:
 cargo tauri icon app-icon.svg       # regenerate icons/
 cargo tauri dev                     # run in development
 cargo tauri dev -- -- --url https://example.com/app
-cargo tauri build                   # .app / .dmg on macOS, .msi / .exe on Windows
+cargo tauri build --config tauri.bundle.json   # .app / .dmg on macOS, .msi / .exe on Windows
 ```
 
 The window size and position are saved by `tauri-plugin-window-state`.

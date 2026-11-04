@@ -7,6 +7,8 @@
 
 How to build, configure and use GenroPy Runner: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.
 
+Other local devices go through a Python sidecar started by the runner; the first module, `inbox`, hands documents dropped in a Finder folder to a GenroPy page.
+
 The project lives in `~/Sviluppo/tauri`. The signing logic is a Rust port of `firmatore_mac/tessere.py` from icond, branch `firma-digitale-protocolli`.
 
 ```mermaid
@@ -36,6 +38,7 @@ sequenceDiagram
 - Rust stable (verified with 1.91) and the Tauri CLI 2: `cargo install tauri-cli --version "^2" --locked`.
 - macOS: Xcode or its command line tools. Windows: WebView2, preinstalled on Windows 10 and 11.
 - For signing: the bit4id PKCS#11 library on the machine. On Windows it comes with Firma4NG of InfoCamere, at 32 bit only.
+- `uv`: it runs the Python sidecar in development and freezes it with PyInstaller for the release.
 - Node is not needed: the local pages are plain HTML and JavaScript, with no bundler.
 
 #### 1. Know the project layout
@@ -51,6 +54,10 @@ sequenceDiagram
 | `src-tauri/capabilities/pin.json` | PIN window: `pin_request`, `pin_submit`, `pin_cancel`. |
 | `src-tauri/tauri.conf.json` | Product name, identifier `it.softwell.genropy.runner`, bundle, CSP of the local pages. |
 | `setup/` | Local pages: `index.html` (instance URL) and `pin.html` (card PIN). |
+| `src-tauri/src/sidecar.rs` | Starts the Python sidecar, forwards `device_call`, emits its events as `device-event`. |
+| `sidecar/` | Python sidecar: `main.py` (protocol), `registry.py`, `modules/system.py`, `modules/inbox.py`, `pyproject.toml`, `uv.lock`. |
+| `scripts/build-sidecar.sh` | Freezes the sidecar into `src-tauri/binaries/genropy-sidecar-<target triple>`. |
+| `src-tauri/tauri.bundle.json` | Release-only config: runs the script above and puts the sidecar in the bundle (`externalBin`). |
 | `src-tauri/app-icon.svg` | Source of the icons; `cargo tauri icon app-icon.svg` writes `icons/`. |
 
 #### 2. Build and run in development
@@ -62,6 +69,8 @@ cargo build
 ```
 
 `cargo tauri dev` works as well; arguments for the app go after `-- --`.
+
+A debug build starts the sidecar with `uv run --project sidecar python sidecar/main.py`, from the sources: a change in Python needs only a restart of the runner. `uv` must be on the `PATH`, so launch the debug build from a terminal.
 
 #### 3. Set the instance URL
 
@@ -113,35 +122,104 @@ await invoke('card_close', {card: cards[0].fingerprint});
 
 The server side prepares the digest and assembles the signed file: PDF and pyHanko stay on the server. In icond the RPCs for this flow from the page do not exist yet.
 
-#### 5. Build the app for distribution
+#### 5. Call the Python sidecar from the page
+
+Every device module lives in the Python sidecar. The page calls it with one command and receives its events with one listener.
+
+**Example — Calls and events**
+
+```javascript
+// Inside a GenroPy iframe the API is on the top window.
+const T = window.__TAURI__ || window.top.__TAURI__;
+const call = (module, method, params) => T.core.invoke('device_call', {module, method, params});
+
+await call('system', 'ping');   // 'pong'
+await call('system', 'info');   // {python, system, release, machine, hostname}
+
+await T.event.listen('device-event', (e) => {
+  // e.payload = {event: 'inbox.file', module: 'inbox', data: {...}}
+});
+```
+
+- An error of the sidecar arrives as a rejected promise with text `<code>: <message>`; an unknown module or method has code `unknown`.
+- The protocol between shell and sidecar is described in `sidecar/main.py`: one JSON object per line on stdin and stdout.
+- A new module is a file in `sidecar/modules/` with a class decorated `@module('name')` and methods decorated `@method`, imported in `modules/__init__.py`. The shell does not change.
+
+#### 6. Hand documents from a Finder folder to a page
+
+The `inbox` module watches folders. A document dropped in one of them is offered to the GenroPy page bound to that folder, which uploads it with the session of the logged-in user.
+
+`config.json`
+```json
+{
+  "url": "https://example.com/app",
+  "inbox": [
+    {"folder": "~/GenroPy Inbox/Invoices", "page": "invoices"},
+    {"folder": "~/GenroPy Inbox", "page": null}
+  ]
+}
+```
+
+1. At startup the sidecar creates each folder with its `Sent/` and `Errors/` subfolders. Drag the folder to the Finder sidebar to have it at hand.
+2. A file is offered when its size has not changed for one second. Hidden files and subfolders are ignored.
+3. The page asks for the files of its own name when it opens, then listens for new ones:
+
+**Example — Page bound to the invoices folder**
+
+```javascript
+const PAGE = 'invoices';
+async function take(file) {
+  const doc = await call('inbox', 'read', {id: file.id});     // {id, name, size, data: base64}
+  try {
+    await uploadToGenroPy(doc.name, doc.data);                // the page's own upload RPC
+    await call('inbox', 'done', {id: file.id, ok: true});     // moves to Sent/
+  } catch (e) {
+    await call('inbox', 'done', {id: file.id, ok: false, message: String(e)});  // moves to Errors/
+  }
+}
+for (const file of await call('inbox', 'pending', {page: PAGE})) await take(file);
+T.event.listen('device-event', (e) => {
+  if (e.payload.event === 'inbox.file' && e.payload.data.page === PAGE) take(e.payload.data);
+});
+```
+
+- A file stays in the folder until `done`: dropped with the app closed, or with no page of that name open, it is offered later.
+- `page: null` binds the folder to the pages that ask `pending` without a page name.
+- A name already present in `Sent/` or `Errors/` gets a timestamp suffix.
+
+#### 7. Build the app for distribution
 
 ```bash
 cd ~/Sviluppo/tauri/src-tauri
-cargo tauri build
+cargo tauri build --config tauri.bundle.json
 ```
+
+`--config tauri.bundle.json` first runs `scripts/build-sidecar.sh` (PyInstaller through `uv`), then puts the sidecar executable in the bundle next to the runner: `Contents/MacOS/genropy-sidecar`.
 
 *Output on macOS (Apple Silicon)*
 
 | File | Size |
 |---|---|
-| `target/release/bundle/macos/GenroPy Runner.app` | 11.15 MiB |
+| `target/release/bundle/macos/GenroPy Runner.app` | 21 MB, of which the sidecar 10.3 MB |
 | `target/release/bundle/dmg/GenroPy Runner_0.1.0_aarch64.dmg` | 3.82 MiB |
 
 The `.app` starts with a double click. Mac Intel needs a universal build:
 
 ```bash
 rustup target add x86_64-apple-darwin
-cargo tauri build --target universal-apple-darwin
+cargo tauri build --config tauri.bundle.json --target universal-apple-darwin
 ```
 
 Windows needs a 32-bit build, because the bit4id DLL of Firma4NG is 32-bit only and a 64-bit process cannot load it. It must be built on Windows:
 
 ```bash
 rustup target add i686-pc-windows-msvc
-cargo tauri build --target i686-pc-windows-msvc
+cargo tauri build --config tauri.bundle.json --target i686-pc-windows-msvc
 ```
 
-#### 6. Check the permissions
+With the sidecar the runner itself can stay 64-bit on Windows: only the process that loads the bit4id DLL must be 32-bit. That holds once the card logic moves to the sidecar.
+
+#### 8. Check the permissions
 
 Serve a test page on localhost and open it with `--url`. The page calls the commands and prints the result.
 
@@ -168,6 +246,11 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
 - The app is signed ad hoc, with no Team ID: on another Mac Gatekeeper blocks it until it is notarized.
 - Not ported from icond: reload of the library after the Mac sleeps, detection of readers plugged in after launch. · `src-tauri/src/card.rs`
 - A granted origin keeps the card commands until the app exits, also after Change URL. · `src-tauri/src/lib.rs:94`
+- If the sidecar exits, it is not restarted: `device_call` fails with `sidecar exited` until the runner restarts. · `src-tauri/src/sidecar.rs`
+- The sidecar reads `config.json` at startup: a change in `inbox` needs a restart of the runner. · `sidecar/main.py`
+- `inbox.read` returns the whole file in base64 in one answer: very large files are held in memory. · `sidecar/modules/inbox.py`
+- The sidecar build script is a shell script: the Windows build needs its own version. · `scripts/build-sidecar.sh`
+- The sidecar is a PyInstaller one-file executable: it unpacks itself at each launch, which adds startup time. · `sidecar/main.py`
 - Downloads and popups (`window.open`) from the GenroPy page are not tested.
 - While a card is open, the page can ask signatures without a new PIN, as with the icond agent. There is no confirmation per signature.
 
@@ -179,6 +262,9 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
 - `RUN` `src-tauri/capabilities/default.json` · 2026-11-03 — The GenroPy page cannot call `get_url` nor `pin_submit`.
 - `READ` `src-tauri/src/card.rs:26` · 2026-11-03 — The card signs the SHA-256 DigestInfo prefix followed by the 32-byte digest, with mechanism CKM\_RSA\_PKCS, as `tessere.py` does.
 - `READ` `src-tauri/src/card.rs:34` · 2026-11-03 — The default macOS library is `/Library/bit4id/pkcs11/libbit4xpki.dylib`; on Windows the UKC, Firma4NG and System32 copies of `bit4xpki.dll`, in that order.
+- `RUN` `src-tauri/src/sidecar.rs` · 2026-11-04 — In debug and in the release `.app`, the test page gets `pong` from `system.ping`, the pending file of the inbox, and the `inbox.file` event of a file dropped later; `done` moves the files to `Sent/` and `Errors/`.
+- `RUN` `src-tauri/src/sidecar.rs` · 2026-11-04 — Inside a same-origin iframe `window.__TAURI__` is missing; `window.top.__TAURI__.core.invoke('device_call', ...)` works.
+- `RUN` `sidecar/main.py` · 2026-11-04 — When the runner process is killed, the sidecar exits: its stdin closes.
 - `RUN` `target/release/bundle` · 2026-11-03 — `cargo tauri build` produces the `.app` and the `.dmg` for arm64; the `.app` starts with `open`.
 
 ### Decisions
@@ -194,9 +280,10 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
 - **d-notarize** `open` — How is the macOS app notarized?
    1. **Apple ID with app-specific password**
    2. **App Store Connect API key**
-- **d-devices** `open` — Do other local devices (printers, medical devices, industry 4.0) go through a Python sidecar, with the card logic moved there from Rust? See the device-sidecar proposal.
+- **d-devices** `decided` — Do other local devices (printers, medical devices, industry 4.0) go through a Python sidecar, with the card logic moved there from Rust? See the device-sidecar proposal.
    1. **Python sidecar behind the shell**
    2. **Each device in Rust inside the shell**
+   → Choice: **Python sidecar behind the shell** (GP, 2026-11-04) — Device code in Python, the language of the team and of the icond agent.
 
 ### Related documents
 

@@ -1,0 +1,11 @@
+{
+  "build": {
+    "beforeBuildCommand": {
+      "script": "sh scripts/build-sidecar.sh",
+      "cwd": ".."
+    }
+  },
+  "bundle": {
+    "externalBin": ["binaries/genropy-sidecar"]
+  }
+}

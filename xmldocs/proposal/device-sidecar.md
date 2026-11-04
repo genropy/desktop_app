@@ -67,7 +67,7 @@ One JSON object per line. The shell writes requests on the sidecar stdin and rea
 - A request carries `id`; its answer carries the same `id` with `result` or `error`.
 - An event carries `event` and no `id`.
 - A `ui` line is a request from the sidecar to the shell: open a local window and answer with the same `id`.
-- At startup the sidecar sends one line with its modules and their methods. The shell uses it to refuse unknown calls.
+- At startup the sidecar sends one line with its modules and their methods. The sidecar itself refuses an unknown module or method with the error code `unknown`.
 
 #### Modules
 
@@ -104,8 +104,15 @@ class Printers(object):
 | PLCs and machines | OPC UA, Modbus TCP/RTU, Siemens S7 | `asyncua`, `pymodbus`, `python-snap7` |
 | Sensors | MQTT | `paho-mqtt` |
 | Serial and USB | RS-232/485, HID | `pyserial`, `hidapi` |
+| Watched folders | FSEvents (macOS), ReadDirectoryChangesW (Windows) | `watchdog` |
+| Photos (macOS) | system picker, PhotoKit | `pyobjc` |
+| macOS print panel | PDFKit print operation | `pyobjc` |
 
-First modules: `cards`, from `tessere.py` of icond with its logic unchanged, and `printers`. The Rust `card.rs` is removed once `cards` works.
+Implemented: `system` and `inbox`, described in the booklet (→ booklet/genropy-runner#s-inbox). Next modules, in this order:
+
+1. `printers`: direct print of a PDF with `lp` (CUPS, AirPrint printers included) and the macOS print panel through PDFKit. On Windows `pywin32`.
+2. `photos`: the system picker, where the user chooses the photos and the app receives only those. Full library access through PhotoKit needs `NSPhotoLibraryUsageDescription` in the Info.plist of the bundle.
+3. `cards`: `tessere.py` of icond with its logic unchanged. The Rust `card.rs` is removed once `cards` works.
 
 #### Packaging
 
@@ -148,9 +155,10 @@ With the Python sidecar the shell is a small fixed layer: window, permissions, f
 - **d-modules** `proposed` — Which modules may the page use?
    1. **List per origin in config.json**: The shell refuses a call to a module the origin is not granted.
    2. **All modules for the configured origin**
-- **d-data-path** `open` — How does data from a device reach the GenroPy server?
+- **d-data-path** `decided` — How does data from a device reach the GenroPy server?
    1. **Through the page**: The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.
    2. **Sidecar to server**: The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.
+   → Choice: **Through the page** (GP, 2026-11-04) — The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.
 - **d-medical** `open` — Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.
    1. **Not medical device software: data transfer only**
    2. **Medical device software: certification needed**

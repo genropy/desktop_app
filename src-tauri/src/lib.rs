@@ -1,4 +1,5 @@
 mod card;
+mod sidecar;
 
 use std::collections::HashSet;
 use std::fs;
@@ -12,10 +13,12 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use tauri::ipc::CapabilityBuilder;
 use tauri::menu::{Menu, MenuItem, Submenu};
-use tauri::{AppHandle, Manager, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use serde_json::Value;
+use tauri::{AppHandle, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tokio::sync::oneshot;
 
 use card::{CardInfo, Cards, PinRequest};
+use sidecar::Sidecar;
 
 const MAIN: &str = "main";
 const SETUP: &str = "setup";
@@ -104,7 +107,9 @@ fn grant_card_commands(app: &AppHandle, url: &Url) -> tauri::Result<()> {
         .window(MAIN)
         .permission("allow-card-list")
         .permission("allow-card-sign")
-        .permission("allow-card-close");
+        .permission("allow-card-close")
+        .permission("allow-device-call")
+        .permission("core:event:default");
     app.add_capability(capability)?;
     origins.insert(origin);
     Ok(())
@@ -287,6 +292,19 @@ async fn card_close(app: AppHandle, card: String) -> Result<(), String> {
     with_cards(&app, |cards| cards.close(&card))
 }
 
+// ------------------------------------------------------------------ Python sidecar
+
+/// Calls `module.method(**params)` in the Python sidecar.
+#[tauri::command]
+async fn device_call(
+    sidecar: State<'_, Sidecar>,
+    module: String,
+    method: String,
+    params: Option<Value>,
+) -> Result<Value, String> {
+    sidecar.call(&module, &method, params.unwrap_or(Value::Null)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -304,7 +322,8 @@ pub fn run() {
             pin_cancel,
             card_list,
             card_sign,
-            card_close
+            card_close,
+            device_call
         ])
         .on_window_event(|window, event| {
             // Closing the PIN window with its close button cancels the request.
@@ -316,6 +335,8 @@ pub fn run() {
         })
         .setup(|app| {
             let handle = app.handle();
+            let sidecar = Sidecar::start(handle.clone(), MAIN, &config_path(handle)?)?;
+            handle.manage(sidecar);
             handle.set_menu(build_menu(handle)?)?;
             handle.on_menu_event(|app, event| {
                 if let Err(e) = on_menu(app, event.id().as_ref()) {
@@ -333,6 +354,11 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running the application");
+        .build(tauri::generate_context!())
+        .expect("error while building the application")
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                app.state::<Sidecar>().stop();
+            }
+        });
 }

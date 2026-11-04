@@ -63,7 +63,7 @@ flowchart LR
         <item>A request carries <c>id</c>; its answer carries the same <c>id</c> with <c>result</c> or <c>error</c>.</item>
         <item>An event carries <c>event</c> and no <c>id</c>.</item>
         <item>A <c>ui</c> line is a request from the sidecar to the shell: open a local window and answer with the same <c>id</c>.</item>
-        <item>At startup the sidecar sends one line with its modules and their methods. The shell uses it to refuse unknown calls.</item>
+        <item>At startup the sidecar sends one line with its modules and their methods. The sidecar itself refuses an unknown module or method with the error code <c>unknown</c>.</item>
       </list>
     </section>
 
@@ -96,8 +96,16 @@ class Printers(object):
         <row><cell>PLCs and machines</cell><cell>OPC UA, Modbus TCP/RTU, Siemens S7</cell><cell><c>asyncua</c>, <c>pymodbus</c>, <c>python-snap7</c></cell></row>
         <row><cell>Sensors</cell><cell>MQTT</cell><cell><c>paho-mqtt</c></cell></row>
         <row><cell>Serial and USB</cell><cell>RS-232/485, HID</cell><cell><c>pyserial</c>, <c>hidapi</c></cell></row>
+        <row><cell>Watched folders</cell><cell>FSEvents (macOS), ReadDirectoryChangesW (Windows)</cell><cell><c>watchdog</c></cell></row>
+        <row><cell>Photos (macOS)</cell><cell>system picker, PhotoKit</cell><cell><c>pyobjc</c></cell></row>
+        <row><cell>macOS print panel</cell><cell>PDFKit print operation</cell><cell><c>pyobjc</c></cell></row>
       </table>
-      <p>First modules: <c>cards</c>, from <c>tessere.py</c> of icond with its logic unchanged, and <c>printers</c>. The Rust <c>card.rs</c> is removed once <c>cards</c> works.</p>
+      <p>Implemented: <c>system</c> and <c>inbox</c>, described in <ref doc="booklet/genropy-runner" to="s-inbox">the booklet</ref>. Next modules, in this order:</p>
+      <list ordered="true">
+        <item><c>printers</c>: direct print of a PDF with <c>lp</c> (CUPS, AirPrint printers included) and the macOS print panel through PDFKit. On Windows <c>pywin32</c>.</item>
+        <item><c>photos</c>: the system picker, where the user chooses the photos and the app receives only those. Full library access through PhotoKit needs <c>NSPhotoLibraryUsageDescription</c> in the Info.plist of the bundle.</item>
+        <item><c>cards</c>: <c>tessere.py</c> of icond with its logic unchanged. The Rust <c>card.rs</c> is removed once <c>cards</c> works.</item>
+      </list>
     </section>
 
     <section title="Packaging">
@@ -148,10 +156,11 @@ class Printers(object):
       <option id="d-modules-config" title="List per origin in config.json"><p>The shell refuses a call to a module the origin is not granted.</p></option>
       <option id="d-modules-all" title="All modules for the configured origin"/>
     </decision>
-    <decision id="d-data-path" status="open">
+    <decision id="d-data-path" status="decided">
       <question>How does data from a device reach the GenroPy server?</question>
       <option id="d-data-path-page" title="Through the page"><p>The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.</p></option>
       <option id="d-data-path-direct" title="Sidecar to server"><p>The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.</p></option>
+      <choice option="d-data-path-page" by="GP" date="2026-11-04">The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.</choice>
     </decision>
     <decision id="d-medical" status="open">
       <question>Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.</question>

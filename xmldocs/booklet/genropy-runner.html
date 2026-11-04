@@ -80,6 +80,7 @@ th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; ver
 th { background: var(--panel); }
   </style></head><body><main><header class="doc-head"><div class="doc-type">Instruction booklet</div><h1>GenroPy Runner: a desktop window with card signing</h1><div class="doc-meta"><span>booklet/genropy-runner</span><span>2026-11-04</span><span>Giovanni Porcari</span></div></header><section class="part purpose"><h2>Purpose</h2>
     <p>How to build, configure and use GenroPy Runner: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.</p>
+    <p>Other local devices go through a Python sidecar started by the runner; the first module, <code>inbox</code>, hands documents dropped in a Finder folder to a GenroPy page.</p>
     <p>The project lives in <code>~/Sviluppo/tauri</code>. The signing logic is a Rust port of <code>firmatore_mac/tessere.py</code> from icond, branch <code>firma-digitale-protocolli</code>.</p>
     <figure class="diagram"><pre class="mermaid">sequenceDiagram
     participant Server as GenroPy server
@@ -104,6 +105,7 @@ th { background: var(--panel); }
       <li>Rust stable (verified with 1.91) and the Tauri CLI 2: <code>cargo install tauri-cli --version "^2" --locked</code>.</li>
       <li>macOS: Xcode or its command line tools. Windows: WebView2, preinstalled on Windows 10 and 11.</li>
       <li>For signing: the bit4id PKCS#11 library on the machine. On Windows it comes with Firma4NG of InfoCamere, at 32 bit only.</li>
+      <li><code>uv</code>: it runs the Python sidecar in development and freezes it with PyInstaller for the release.</li>
       <li>Node is not needed: the local pages are plain HTML and JavaScript, with no bundler.</li>
     </ul>
   </section><section class="part steps"><h2>Steps</h2><section class="section step" id="s-layout"><h3><span class="step-num">1.</span>Know the project layout</h3>
@@ -116,6 +118,10 @@ th { background: var(--panel); }
       <tr><td><code>src-tauri/capabilities/pin.json</code></td><td>PIN window: <code>pin_request</code>, <code>pin_submit</code>, <code>pin_cancel</code>.</td></tr>
       <tr><td><code>src-tauri/tauri.conf.json</code></td><td>Product name, identifier <code>it.softwell.genropy.runner</code>, bundle, CSP of the local pages.</td></tr>
       <tr><td><code>setup/</code></td><td>Local pages: <code>index.html</code> (instance URL) and <code>pin.html</code> (card PIN).</td></tr>
+      <tr><td><code>src-tauri/src/sidecar.rs</code></td><td>Starts the Python sidecar, forwards <code>device_call</code>, emits its events as <code>device-event</code>.</td></tr>
+      <tr><td><code>sidecar/</code></td><td>Python sidecar: <code>main.py</code> (protocol), <code>registry.py</code>, <code>modules/system.py</code>, <code>modules/inbox.py</code>, <code>pyproject.toml</code>, <code>uv.lock</code>.</td></tr>
+      <tr><td><code>scripts/build-sidecar.sh</code></td><td>Freezes the sidecar into <code>src-tauri/binaries/genropy-sidecar-&lt;target triple&gt;</code>.</td></tr>
+      <tr><td><code>src-tauri/tauri.bundle.json</code></td><td>Release-only config: runs the script above and puts the sidecar in the bundle (<code>externalBin</code>).</td></tr>
       <tr><td><code>src-tauri/app-icon.svg</code></td><td>Source of the icons; <code>cargo tauri icon app-icon.svg</code> writes <code>icons/</code>.</td></tr>
     </table></div>
   </section><section class="section step" id="s-dev"><h3><span class="step-num">2.</span>Build and run in development</h3>
@@ -123,6 +129,7 @@ th { background: var(--panel); }
 cargo build
 ./target/debug/genropy-runner --url https://example.com/app</code></pre></figure>
     <p><code>cargo tauri dev</code> works as well; arguments for the app go after <code>-- --</code>.</p>
+    <p>A debug build starts the sidecar with <code>uv run --project sidecar python sidecar/main.py</code>, from the sources: a change in Python needs only a restart of the runner. <code>uv</code> must be on the <code>PATH</code>, so launch the debug build from a terminal.</p>
   </section><section class="section step" id="s-url"><h3><span class="step-num">3.</span>Set the instance URL</h3>
     <p>At startup the URL is taken from the first source that has one:</p>
     <ol>
@@ -161,21 +168,77 @@ await invoke('card_close', {card: cards[0].fingerprint});</code></pre></figure>
       <li>Closing the PIN window or pressing Cancel makes <code>card_sign</code> fail with <code>PIN cancelled</code>.</li>
     </ul>
     <p>The server side prepares the digest and assembles the signed file: PDF and pyHanko stay on the server. In icond the RPCs for this flow from the page do not exist yet.</p>
-  </section><section class="section step" id="s-release"><h3><span class="step-num">5.</span>Build the app for distribution</h3>
+  </section><section class="section step" id="s-sidecar"><h3><span class="step-num">5.</span>Call the Python sidecar from the page</h3>
+    <p>Every device module lives in the Python sidecar. The page calls it with one command and receives its events with one listener.</p>
+    <div class="box example"><div class="box-head"><b>Calls and events</b></div>
+      <figure class="code"><figcaption>javascript</figcaption><pre><code>// Inside a GenroPy iframe the API is on the top window.
+const T = window.__TAURI__ || window.top.__TAURI__;
+const call = (module, method, params) =&gt; T.core.invoke('device_call', {module, method, params});
+
+await call('system', 'ping');   // 'pong'
+await call('system', 'info');   // {python, system, release, machine, hostname}
+
+await T.event.listen('device-event', (e) =&gt; {
+  // e.payload = {event: 'inbox.file', module: 'inbox', data: {...}}
+});</code></pre></figure>
+    </div>
+    <ul>
+      <li>An error of the sidecar arrives as a rejected promise with text <code>&lt;code&gt;: &lt;message&gt;</code>; an unknown module or method has code <code>unknown</code>.</li>
+      <li>The protocol between shell and sidecar is described in <code>sidecar/main.py</code>: one JSON object per line on stdin and stdout.</li>
+      <li>A new module is a file in <code>sidecar/modules/</code> with a class decorated <code>@module('name')</code> and methods decorated <code>@method</code>, imported in <code>modules/__init__.py</code>. The shell does not change.</li>
+    </ul>
+  </section><section class="section step" id="s-inbox"><h3><span class="step-num">6.</span>Hand documents from a Finder folder to a page</h3>
+    <p>The <code>inbox</code> module watches folders. A document dropped in one of them is offered to the GenroPy page bound to that folder, which uploads it with the session of the logged-in user.</p>
+    <figure class="code"><figcaption>config.json · json</figcaption><pre><code>{
+  "url": "https://example.com/app",
+  "inbox": [
+    {"folder": "~/GenroPy Inbox/Invoices", "page": "invoices"},
+    {"folder": "~/GenroPy Inbox", "page": null}
+  ]
+}</code></pre></figure>
+    <ol>
+      <li>At startup the sidecar creates each folder with its <code>Sent/</code> and <code>Errors/</code> subfolders. Drag the folder to the Finder sidebar to have it at hand.</li>
+      <li>A file is offered when its size has not changed for one second. Hidden files and subfolders are ignored.</li>
+      <li>The page asks for the files of its own name when it opens, then listens for new ones:</li>
+    </ol>
+    <div class="box example"><div class="box-head"><b>Page bound to the invoices folder</b></div>
+      <figure class="code"><figcaption>javascript</figcaption><pre><code>const PAGE = 'invoices';
+async function take(file) {
+  const doc = await call('inbox', 'read', {id: file.id});     // {id, name, size, data: base64}
+  try {
+    await uploadToGenroPy(doc.name, doc.data);                // the page's own upload RPC
+    await call('inbox', 'done', {id: file.id, ok: true});     // moves to Sent/
+  } catch (e) {
+    await call('inbox', 'done', {id: file.id, ok: false, message: String(e)});  // moves to Errors/
+  }
+}
+for (const file of await call('inbox', 'pending', {page: PAGE})) await take(file);
+T.event.listen('device-event', (e) =&gt; {
+  if (e.payload.event === 'inbox.file' &amp;&amp; e.payload.data.page === PAGE) take(e.payload.data);
+});</code></pre></figure>
+    </div>
+    <ul>
+      <li>A file stays in the folder until <code>done</code>: dropped with the app closed, or with no page of that name open, it is offered later.</li>
+      <li><code>page: null</code> binds the folder to the pages that ask <code>pending</code> without a page name.</li>
+      <li>A name already present in <code>Sent/</code> or <code>Errors/</code> gets a timestamp suffix.</li>
+    </ul>
+  </section><section class="section step" id="s-release"><h3><span class="step-num">7.</span>Build the app for distribution</h3>
     <figure class="code"><figcaption>bash</figcaption><pre><code>cd ~/Sviluppo/tauri/src-tauri
-cargo tauri build</code></pre></figure>
+cargo tauri build --config tauri.bundle.json</code></pre></figure>
+    <p><code>--config tauri.bundle.json</code> first runs <code>scripts/build-sidecar.sh</code> (PyInstaller through <code>uv</code>), then puts the sidecar executable in the bundle next to the runner: <code>Contents/MacOS/genropy-sidecar</code>.</p>
     <div class="table-wrap"><table><caption>Output on macOS (Apple Silicon)</caption>
       <tr><th>File</th><th>Size</th></tr>
-      <tr><td><code>target/release/bundle/macos/GenroPy Runner.app</code></td><td>11.15 MiB</td></tr>
+      <tr><td><code>target/release/bundle/macos/GenroPy Runner.app</code></td><td>21 MB, of which the sidecar 10.3 MB</td></tr>
       <tr><td><code>target/release/bundle/dmg/GenroPy Runner_0.1.0_aarch64.dmg</code></td><td>3.82 MiB</td></tr>
     </table></div>
     <p>The <code>.app</code> starts with a double click. Mac Intel needs a universal build:</p>
     <figure class="code"><figcaption>bash</figcaption><pre><code>rustup target add x86_64-apple-darwin
-cargo tauri build --target universal-apple-darwin</code></pre></figure>
+cargo tauri build --config tauri.bundle.json --target universal-apple-darwin</code></pre></figure>
     <p>Windows needs a 32-bit build, because the bit4id DLL of Firma4NG is 32-bit only and a 64-bit process cannot load it. It must be built on Windows:</p>
     <figure class="code"><figcaption>bash</figcaption><pre><code>rustup target add i686-pc-windows-msvc
-cargo tauri build --target i686-pc-windows-msvc</code></pre></figure>
-  </section><section class="section step" id="s-check"><h3><span class="step-num">6.</span>Check the permissions</h3>
+cargo tauri build --config tauri.bundle.json --target i686-pc-windows-msvc</code></pre></figure>
+    <p>With the sidecar the runner itself can stay 64-bit on Windows: only the process that loads the bit4id DLL must be 32-bit. That holds once the card logic moves to the sidecar.</p>
+  </section><section class="section step" id="s-check"><h3><span class="step-num">8.</span>Check the permissions</h3>
     <p>Serve a test page on localhost and open it with <code>--url</code>. The page calls the commands and prints the result.</p>
     <figure class="code"><figcaption>bash</figcaption><pre><code>python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
 ./target/debug/genropy-runner --url http://localhost:8765/test.html</code></pre></figure>
@@ -195,6 +258,11 @@ cargo tauri build --target i686-pc-windows-msvc</code></pre></figure>
     <div class="box limit"><div>The app is signed ad hoc, with no Team ID: on another Mac Gatekeeper blocks it until it is notarized.</div></div>
     <div class="box limit"><div>Not ported from icond: reload of the library after the Mac sleeps, detection of readers plugged in after launch.</div><div class="box-foot"><code class="source">src-tauri/src/card.rs</code></div></div>
     <div class="box limit"><div>A granted origin keeps the card commands until the app exits, also after Change URL.</div><div class="box-foot"><code class="source">src-tauri/src/lib.rs:94</code></div></div>
+    <div class="box limit"><div>If the sidecar exits, it is not restarted: <code>device_call</code> fails with <code>sidecar exited</code> until the runner restarts.</div><div class="box-foot"><code class="source">src-tauri/src/sidecar.rs</code></div></div>
+    <div class="box limit"><div>The sidecar reads <code>config.json</code> at startup: a change in <code>inbox</code> needs a restart of the runner.</div><div class="box-foot"><code class="source">sidecar/main.py</code></div></div>
+    <div class="box limit"><div><code>inbox.read</code> returns the whole file in base64 in one answer: very large files are held in memory.</div><div class="box-foot"><code class="source">sidecar/modules/inbox.py</code></div></div>
+    <div class="box limit"><div>The sidecar build script is a shell script: the Windows build needs its own version.</div><div class="box-foot"><code class="source">scripts/build-sidecar.sh</code></div></div>
+    <div class="box limit"><div>The sidecar is a PyInstaller one-file executable: it unpacks itself at each launch, which adds startup time.</div><div class="box-foot"><code class="source">sidecar/main.py</code></div></div>
     <div class="box limit"><div>Downloads and popups (<code>window.open</code>) from the GenroPy page are not tested.</div></div>
     <div class="box limit"><div>While a card is open, the page can ask signatures without a new PIN, as with the icond agent. There is no confirmation per signature.</div></div>
   </section><section class="part facts"><h2>Verified facts</h2>
@@ -204,12 +272,15 @@ cargo tauri build --target i686-pc-windows-msvc</code></pre></figure>
     <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/capabilities/default.json</code><span class="muted">2026-11-03</span></div><div>The GenroPy page cannot call <code>get_url</code> nor <code>pin_submit</code>.</div></div>
     <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/src/card.rs:26</code><span class="muted">2026-11-03</span></div><div>The card signs the SHA-256 DigestInfo prefix followed by the 32-byte digest, with mechanism CKM_RSA_PKCS, as <code>tessere.py</code> does.</div></div>
     <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/src/card.rs:34</code><span class="muted">2026-11-03</span></div><div>The default macOS library is <code>/Library/bit4id/pkcs11/libbit4xpki.dylib</code>; on Windows the UKC, Firma4NG and System32 copies of <code>bit4xpki.dll</code>, in that order.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/sidecar.rs</code><span class="muted">2026-11-04</span></div><div>In debug and in the release <code>.app</code>, the test page gets <code>pong</code> from <code>system.ping</code>, the pending file of the inbox, and the <code>inbox.file</code> event of a file dropped later; <code>done</code> moves the files to <code>Sent/</code> and <code>Errors/</code>.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/sidecar.rs</code><span class="muted">2026-11-04</span></div><div>Inside a same-origin iframe <code>window.__TAURI__</code> is missing; <code>window.top.__TAURI__.core.invoke('device_call', ...)</code> works.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">sidecar/main.py</code><span class="muted">2026-11-04</span></div><div>When the runner process is killed, the sidecar exits: its stdin closes.</div></div>
     <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">target/release/bundle</code><span class="muted">2026-11-03</span></div><div><code>cargo tauri build</code> produces the <code>.app</code> and the <code>.dmg</code> for arm64; the <code>.app</code> starts with <code>open</code>.</div></div>
   </section><section class="part decisions"><h2>Decisions</h2>
     <div class="box decision decision-decided" id="d-flow"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-flow</span></div><div class="question">How does a signing request reach the app?</div><ol class="options"><li id="d-flow-page" class="chosen"><b>Directly from the page</b><p>The page calls <code>card_sign</code> and gets the signature at once. Signing needs the runner open on that page.</p></li><li id="d-flow-poll"><b>Polling like the icond agent</b><p>The app asks icond every 30 seconds with a token. Signing works with the window closed.</p></li></ol><div class="choice"><b>Choice: Directly from the page</b><span class="muted"> (GP, 2026-11-03)</span><div>One app for window and signing, no polling.</div></div></div>
     <div class="box decision decision-decided" id="d-stack"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-stack</span></div><div class="question">Electron or Tauri?</div><ol class="options"><li id="d-stack-electron"><b>Electron</b><p>Always Chromium, bundled with the app (size not measured here).</p></li><li id="d-stack-tauri" class="chosen"><b>Tauri 2</b><p>System webview (WebKit on macOS, WebView2 on Windows); 11.15 MiB measured.</p></li></ol><div class="choice"><b>Choice: Tauri 2</b><span class="muted"> (GP, 2026-11-03)</span><div>Smaller bundle, built-in per-origin access. The full comparison, Electron included, is in the device-sidecar proposal.</div></div></div>
     <div class="box decision decision-open" id="d-notarize"><div class="box-head"><span class="tag tag-open">open</span><span class="muted">d-notarize</span></div><div class="question">How is the macOS app notarized?</div><ol class="options"><li id="d-notarize-apple-id"><b>Apple ID with app-specific password</b></li><li id="d-notarize-api-key"><b>App Store Connect API key</b></li></ol></div>
-    <div class="box decision decision-open" id="d-devices"><div class="box-head"><span class="tag tag-open">open</span><span class="muted">d-devices</span></div><div class="question">Do other local devices (printers, medical devices, industry 4.0) go through a Python sidecar, with the card logic moved there from Rust? See the device-sidecar proposal.</div><ol class="options"><li id="d-devices-sidecar"><b>Python sidecar behind the shell</b></li><li id="d-devices-rust"><b>Each device in Rust inside the shell</b></li></ol></div>
+    <div class="box decision decision-decided" id="d-devices"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-devices</span></div><div class="question">Do other local devices (printers, medical devices, industry 4.0) go through a Python sidecar, with the card logic moved there from Rust? See the device-sidecar proposal.</div><ol class="options"><li id="d-devices-sidecar" class="chosen"><b>Python sidecar behind the shell</b></li><li id="d-devices-rust"><b>Each device in Rust inside the shell</b></li></ol><div class="choice"><b>Choice: Python sidecar behind the shell</b><span class="muted"> (GP, 2026-11-04)</span><div>Device code in Python, the language of the team and of the icond agent.</div></div></div>
   </section><section class="part related"><h2>Related documents</h2><ul>
     <li><a href="../proposal/device-sidecar.html">proposal/device-sidecar</a><span class="tag">proposal</span> — Local devices through a Python sidecar</li>
   </ul></section></main><script type="module">
