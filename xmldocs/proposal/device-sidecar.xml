@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proposal id="proposal/device-sidecar" title="Local devices through a Python sidecar" date="2026-11-04" lang="en" author="Giovanni Porcari" status="draft">
+  <problem>
+    <p>A GenroPy page in a browser cannot reach the devices of the machine it runs on. The downloadable app exists to give the page that access, and the card reader is only the first device. The next ones are:</p>
+    <list>
+      <item>local printers and label printers;</item>
+      <item>medical devices, for example ultrasound scanners;</item>
+      <item>industry 4.0 equipment: PLCs, sensors, machines;</item>
+      <item>other serial, USB or network devices.</item>
+    </list>
+    <p>The device code must be written in Python, the language of the GenroPy team and of the existing signing agent of icond. Writing each device in Rust inside the Tauri shell does not scale.</p>
+  </problem>
+
+  <current>
+    <list>
+      <item><b>GenroPy Runner</b> (this repository): Tauri 2 shell with the card logic in Rust, <c>src-tauri/src/card.rs</c>. See <ref doc="booklet/genropy-runner" to="s-sign">the booklet</ref>.</item>
+      <item><b>icond signing agent</b> (<c>firmatore_mac/</c>, branch <c>firma-digitale-protocolli</c>): Python app in the menu bar or tray, PyKCS11, polls icond every 30 seconds. On Windows it is a 32-bit PyInstaller build, because the bit4id DLL of Firma4NG is 32-bit only.</item>
+      <item><b>Mobile</b>: Android and iOS apps are built with Capacitor.</item>
+    </list>
+  </current>
+
+  <solution>
+    <p>The app is split in two processes. A thin shell shows the GenroPy page and guards the access. A Python process, the sidecar, owns every device. The shell never changes when a device is added.</p>
+    <diagram kind="mermaid" title="Processes and data flow"><![CDATA[
+flowchart LR
+    Server["GenroPy server"]
+    subgraph App["Downloadable app"]
+        Page["GenroPy page (webview)"]
+        Shell["Shell (Tauri, Rust)"]
+        Sidecar["Python sidecar"]
+        LocalUI["Local windows: PIN, confirm"]
+    end
+    Devices["Devices: cards, printers, DICOM, OPC UA, serial"]
+    Page <-->|"RPC"| Server
+    Page <-->|"invoke / events"| Shell
+    Shell <-->|"JSON lines on stdin/stdout"| Sidecar
+    Shell --> LocalUI
+    Sidecar <--> Devices
+]]></diagram>
+
+    <section title="Shell">
+      <list>
+        <item>Window without browser chrome, instance URL, menu: as in the current runner.</item>
+        <item>One generic command for the page: <c>device_call(module, method, params)</c>. The shell forwards it to the sidecar and returns the answer.</item>
+        <item>Device events (an image received, a PLC value changed) arrive from the sidecar and the shell emits them to the page, which receives them with <c>listen</c>.</item>
+        <item>Permission per origin, as today: only the origin of the configured URL gets <c>device_call</c>. In addition <c>config.json</c> lists the modules that origin may use.</item>
+        <item>Local windows for what the page must not see or decide alone: card PIN, confirmation of an action. The sidecar asks the shell to open them.</item>
+        <item>Tray icon: the app keeps running with the window closed, for the devices that send data by themselves.</item>
+        <item>Starts the sidecar at launch, restarts it if it exits, stops it on quit.</item>
+      </list>
+    </section>
+
+    <section title="Sidecar protocol">
+      <p>One JSON object per line. The shell writes requests on the sidecar stdin and reads answers and events on its stdout. The sidecar writes its log on stderr.</p>
+      <code lang="json"><![CDATA[
+{"id": 7, "module": "cards", "method": "sign", "params": {"card": "ab12…", "digest": "base64…"}}
+{"id": 7, "result": {"signature": "base64…"}}
+{"id": 8, "error": {"code": "pin_cancelled", "message": "PIN cancelled"}}
+{"event": "dicom.received", "module": "dicom", "data": {"study": "1.2.840…", "file": "…"}}
+{"id": 9, "ui": "pin", "params": {"holder": "Mario Rossi", "min_length": 5, "max_length": 8}}
+]]></code>
+      <list>
+        <item>A request carries <c>id</c>; its answer carries the same <c>id</c> with <c>result</c> or <c>error</c>.</item>
+        <item>An event carries <c>event</c> and no <c>id</c>.</item>
+        <item>A <c>ui</c> line is a request from the sidecar to the shell: open a local window and answer with the same <c>id</c>.</item>
+        <item>At startup the sidecar sends one line with its modules and their methods. The shell uses it to refuse unknown calls.</item>
+      </list>
+    </section>
+
+    <section title="Modules">
+      <p>One Python module per device class, in <c>sidecar/modules/</c>. A module exposes its methods with a decorator; the registry builds the startup list from them.</p>
+      <example title="Shape of a module">
+        <code lang="python" file="sidecar/modules/printers.py"><![CDATA[
+from sidecar.registry import module, method
+
+
+@module('printers')
+class Printers(object):
+
+    @method
+    def list(self):
+        "Names of the local printers."
+
+    @method
+    def print_pdf(self, printer=None, data=None, copies=1):
+        "Prints a PDF (base64) on `printer` without a dialog."
+]]></code>
+      </example>
+      <table title="Device classes and Python libraries">
+        <row head="true"><cell>Device</cell><cell>Protocol</cell><cell>Library</cell></row>
+        <row><cell>Signing cards</cell><cell>PKCS#11, PC/SC</cell><cell><c>PyKCS11</c>, <c>pyscard</c></cell></row>
+        <row><cell>Local printers</cell><cell>CUPS (macOS), Windows spooler</cell><cell><c>pycups</c> or <c>lp</c>, <c>pywin32</c></cell></row>
+        <row><cell>Label printers</cell><cell>raw ZPL/EPL on USB or port 9100</cell><cell><c>socket</c>, <c>pyusb</c></cell></row>
+        <row><cell>Ultrasound and imaging</cell><cell>DICOM Storage, Modality Worklist</cell><cell><c>pynetdicom</c>, <c>pydicom</c></cell></row>
+        <row><cell>Medical devices with HL7</cell><cell>HL7 v2 on MLLP</cell><cell><c>hl7apy</c>, <c>python-hl7</c></cell></row>
+        <row><cell>PLCs and machines</cell><cell>OPC UA, Modbus TCP/RTU, Siemens S7</cell><cell><c>asyncua</c>, <c>pymodbus</c>, <c>python-snap7</c></cell></row>
+        <row><cell>Sensors</cell><cell>MQTT</cell><cell><c>paho-mqtt</c></cell></row>
+        <row><cell>Serial and USB</cell><cell>RS-232/485, HID</cell><cell><c>pyserial</c>, <c>hidapi</c></cell></row>
+      </table>
+      <p>First modules: <c>cards</c>, from <c>tessere.py</c> of icond with its logic unchanged, and <c>printers</c>. The Rust <c>card.rs</c> is removed once <c>cards</c> works.</p>
+    </section>
+
+    <section title="Packaging">
+      <list>
+        <item>The sidecar is frozen with PyInstaller and shipped inside the app bundle, next to the shell.</item>
+        <item>On Windows the sidecar is a 32-bit build, as the icond agent is today, so it loads the bit4id DLL. The shell stays 64-bit: it never loads the DLL.</item>
+        <item>macOS: shell and sidecar are signed with the same Developer ID and notarized together.</item>
+      </list>
+    </section>
+
+    <section title="Why Tauri for the shell">
+      <p>With the Python sidecar the shell is a small fixed layer: window, permissions, forwarding, local windows, tray, updates. The choice is between shells that can host it.</p>
+      <table title="Shell options">
+        <row head="true"><cell>Criterion</cell><cell>Tauri 2</cell><cell>Electron</cell><cell>pywebview</cell><cell>Agent + browser</cell></row>
+        <row><cell>Maturity</cell><cell>1.0 in June 2022, 2.0 in October 2024</cell><cell>1.0 in May 2016; VS Code is built on it</cell><cell>Not evaluated here</cell><cell>No shell: any browser</cell></row>
+        <row><cell>Web engine</cell><cell>System webview: WebKit on macOS, WebView2 (Chromium) on Windows</cell><cell>Chromium bundled, same everywhere</cell><cell>System webview, as Tauri</cell><cell>The user's browser</cell></row>
+        <row><cell>Bundle size</cell><cell>11.15 MiB measured (.app, arm64)</cell><cell>Bundles Chromium and Node: several times larger (not measured here)</cell><cell>Python runtime plus libraries</cell><cell>Agent only</cell></row>
+        <row><cell>Remote page access control</cell><cell>Built-in per-origin capabilities, tested in the runner</cell><cell>Manual: check the sender frame URL in every IPC handler</cell><cell>Manual: the API is exposed to any loaded page</cell><cell>Manual: local HTTP port and CORS checks</cell></row>
+        <row><cell>Window without browser chrome</cell><cell>Yes</cell><cell>Yes</cell><cell>Yes</cell><cell>No</cell></row>
+        <row><cell>Auto-update</cell><cell>Plugin <c>updater</c></cell><cell><c>electron-updater</c></cell><cell>None</cell><cell>Agent only</cell></row>
+        <row><cell>Windows 32-bit</cell><cell>Target <c>i686-pc-windows-msvc</c></cell><cell>Last ia32 build: 43.0.0; none from 44.0.0</cell><cell>Depends on the Python build</cell><cell>Agent only</cell></row>
+        <row><cell>Language of the shell</cell><cell>Rust</cell><cell>JavaScript (Node)</cell><cell>Python</cell><cell>Python</cell></row>
+      </table>
+      <list>
+        <item><b>Electron is the more mature option.</b> It has had releases since 2016, the same Chromium on every system, and its shell would be JavaScript, a language the team already writes.</item>
+        <item><b>Tauri is proposed</b> for three reasons. Access control per origin is built in and already tested in the runner; in Electron it is hand-written code in every handler, and an error there exposes the devices to any page. The bundle is several times smaller. The shell already exists and works.</item>
+        <item><b>The macOS engine is already in use.</b> Tauri on macOS runs WebKit, the engine of Safari and of the iOS apps, where the GenroPy client is used every day.</item>
+        <item><b>The 32-bit limit of Electron does not decide.</b> With the sidecar the shell never loads the bit4id DLL.</item>
+        <item><b>The choice can be reversed.</b> The sidecar and its protocol do not depend on the shell. Moving to Electron rewrites only the shell layer: forwarding, origin checks, local windows, tray.</item>
+        <item><b>pywebview</b> would give one language, but no access control and no updater: both would have to be written. <b>Agent + browser</b> keeps the browser address bar and needs a local HTTP port reachable from the page. <b>Capacitor for Electron</b> (<c>@capacitor-community/electron</c>) is stopped at 5.0.1 of September 2023, for Capacitor 5, while Capacitor is at 8.6.0.</item>
+      </list>
+    </section>
+  </solution>
+
+  <decisions>
+    <decision id="d-shell" status="proposed">
+      <question>Which shell hosts the GenroPy page and the sidecar?</question>
+      <option id="d-shell-tauri" title="Tauri 2"><p>Built-in per-origin access, small bundle, existing runner.</p></option>
+      <option id="d-shell-electron" title="Electron"><p>More mature, Chromium everywhere, shell in JavaScript. Access control written by hand.</p></option>
+    </decision>
+    <decision id="d-protocol" status="proposed">
+      <question>How do shell and sidecar talk?</question>
+      <option id="d-protocol-stdio" title="JSON lines on stdin/stdout"><p>No port opened, the sidecar lives and dies with the app.</p></option>
+      <option id="d-protocol-http" title="Local HTTP or WebSocket"><p>Easier to debug with curl, but a port on the machine that other processes can reach.</p></option>
+    </decision>
+    <decision id="d-modules" status="proposed">
+      <question>Which modules may the page use?</question>
+      <option id="d-modules-config" title="List per origin in config.json"><p>The shell refuses a call to a module the origin is not granted.</p></option>
+      <option id="d-modules-all" title="All modules for the configured origin"/>
+    </decision>
+    <decision id="d-data-path" status="open">
+      <question>How does data from a device reach the GenroPy server?</question>
+      <option id="d-data-path-page" title="Through the page"><p>The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.</p></option>
+      <option id="d-data-path-direct" title="Sidecar to server"><p>The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.</p></option>
+    </decision>
+    <decision id="d-medical" status="open">
+      <question>Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.</question>
+      <option id="d-medical-no" title="Not medical device software: data transfer only"/>
+      <option id="d-medical-yes" title="Medical device software: certification needed"/>
+    </decision>
+  </decisions>
+
+  <consequences>
+    <list>
+      <item>The repository gains a <c>sidecar/</c> Python package with its own tests and PyInstaller spec.</item>
+      <item><c>src-tauri/src/card.rs</c> and the <c>card_*</c> commands are replaced by <c>device_call</c> and the <c>cards</c> module.</item>
+      <item>Builds become two per platform (shell and sidecar), joined in one bundle and one installer.</item>
+      <item>Modules with listeners (DICOM Storage, HL7, MQTT) open ports on the local network. The icond agent never does; each such port is a configuration choice per installation.</item>
+      <item>Mobile stays on Capacitor. A page can detect the platform with <c>window.Capacitor</c>, <c>window.__TAURI__</c> or neither.</item>
+    </list>
+  </consequences>
+
+  <related>
+    <doc id="booklet/genropy-runner" type="booklet">GenroPy Runner: a desktop window with card signing</doc>
+  </related>
+</proposal>

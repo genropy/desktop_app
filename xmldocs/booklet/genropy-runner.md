@@ -188,9 +188,16 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
    2. **Polling like the icond agent**: The app asks icond every 30 seconds with a token. Signing works with the window closed.
    → Choice: **Directly from the page** (GP, 2026-11-03) — One app for window and signing, no polling.
 - **d-stack** `decided` — Electron or Tauri?
-   1. **Electron**: Always Chromium; bundle around 100 MB.
-   2. **Tauri 2**: System webview (WebKit on macOS, WebView2 on Windows); bundle around 11 MB.
-   → Choice: **Tauri 2** (GP, 2026-11-03) — Smaller bundle; native code in Rust.
+   1. **Electron**: Always Chromium, bundled with the app (size not measured here).
+   2. **Tauri 2**: System webview (WebKit on macOS, WebView2 on Windows); 11.15 MiB measured.
+   → Choice: **Tauri 2** (GP, 2026-11-03) — Smaller bundle, built-in per-origin access. The full comparison, Electron included, is in the device-sidecar proposal.
 - **d-notarize** `open` — How is the macOS app notarized?
    1. **Apple ID with app-specific password**
    2. **App Store Connect API key**
+- **d-devices** `open` — Do other local devices (printers, medical devices, industry 4.0) go through a Python sidecar, with the card logic moved there from Rust? See the device-sidecar proposal.
+   1. **Python sidecar behind the shell**
+   2. **Each device in Rust inside the shell**
+
+### Related documents
+
+- `proposal/device-sidecar` (proposal) — Local devices through a Python sidecar

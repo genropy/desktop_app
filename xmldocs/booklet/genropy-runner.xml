@@ -174,14 +174,23 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
     </decision>
     <decision id="d-stack" status="decided">
       <question>Electron or Tauri?</question>
-      <option id="d-stack-electron" title="Electron"><p>Always Chromium; bundle around 100 MB.</p></option>
-      <option id="d-stack-tauri" title="Tauri 2"><p>System webview (WebKit on macOS, WebView2 on Windows); bundle around 11 MB.</p></option>
-      <choice option="d-stack-tauri" by="GP" date="2026-11-03">Smaller bundle; native code in Rust.</choice>
+      <option id="d-stack-electron" title="Electron"><p>Always Chromium, bundled with the app (size not measured here).</p></option>
+      <option id="d-stack-tauri" title="Tauri 2"><p>System webview (WebKit on macOS, WebView2 on Windows); 11.15 MiB measured.</p></option>
+      <choice option="d-stack-tauri" by="GP" date="2026-11-03">Smaller bundle, built-in per-origin access. The full comparison, Electron included, is in the device-sidecar proposal.</choice>
     </decision>
     <decision id="d-notarize" status="open">
       <question>How is the macOS app notarized?</question>
       <option id="d-notarize-apple-id" title="Apple ID with app-specific password"/>
       <option id="d-notarize-api-key" title="App Store Connect API key"/>
     </decision>
+    <decision id="d-devices" status="open">
+      <question>Do other local devices (printers, medical devices, industry 4.0) go through a Python sidecar, with the card logic moved there from Rust? See the device-sidecar proposal.</question>
+      <option id="d-devices-sidecar" title="Python sidecar behind the shell"/>
+      <option id="d-devices-rust" title="Each device in Rust inside the shell"/>
+    </decision>
   </decisions>
+
+  <related>
+    <doc id="proposal/device-sidecar" type="proposal">Local devices through a Python sidecar</doc>
+  </related>
 </booklet>
