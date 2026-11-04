@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<!-- generated from genropy-runner.xml by xmldocs: do not edit, edit the XML -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>GenroPy Runner: a desktop window with card signing</title><style>
+:root {
+  --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8; --panel: #f3f1ec;
+  --code-bg: #f0eee8; --accent: #2f5d8a;
+  --ok: #2e7d4f; --warn: #a86b00; --bad: #b23b3b; --info: #2f5d8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+    --code-bg: #26262a; --accent: #8fb4dc;
+    --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+  --code-bg: #26262a; --accent: #8fb4dc;
+  --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 4px 0 8px; }
+h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1.12rem; margin: 28px 0 8px; }
+h4 { font-size: 1rem; margin: 20px 0 6px; }
+a { color: var(--accent); }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg);
+  padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; overflow-x: auto; }
+pre code { display: block; padding: 12px 14px; background: none; }
+figure { margin: 16px 0; }
+figure.code { background: var(--code-bg); border-radius: 8px; }
+figure.code figcaption { font-size: 0.8rem; color: var(--muted); padding: 8px 14px 0; }
+figure.diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.embed svg { max-width: 100%; height: auto; }
+.tag-script { color: var(--bad); }
+figure.diagram figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+.doc-type { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--muted); }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 0.9rem; }
+.muted { color: var(--muted); font-size: 0.9em; }
+.box { border: 1px solid var(--line); border-left: 4px solid var(--line); background: var(--panel);
+  border-radius: 6px; padding: 10px 14px; margin: 12px 0; }
+.box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.box-foot { margin-top: 6px; }
+.box.fact { border-left-color: var(--info); }
+.box.rule-must { border-left-color: var(--ok); }
+.box.rule-must-not { border-left-color: var(--bad); }
+.box.rule-should { border-left-color: var(--warn); }
+.box.limit { border-left-color: var(--warn); }
+.box.decision-open, .box.decision-proposed { border-left-color: var(--warn); }
+.box.decision-decided { border-left-color: var(--ok); }
+.box.decision-rejected { border-left-color: var(--bad); }
+.box.example { border-left-color: var(--accent); }
+.box.done { border-left-color: var(--ok); }
+.tag-done { color: var(--ok); }
+.tag-doing, .tag-in-progress { color: var(--info); }
+.tag-todo { color: var(--muted); }
+.tag-approved { color: var(--ok); }
+.source { font-size: 0.8rem; }
+.why { margin-top: 4px; }
+.tag { display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; color: var(--muted); }
+.tag-test, .tag-run, .tag-must, .tag-decided, .tag-accepted { color: var(--ok); }
+.tag-read, .tag-review { color: var(--info); }
+.tag-should, .tag-open, .tag-proposed, .tag-draft { color: var(--warn); }
+.tag-must-not, .tag-rejected { color: var(--bad); }
+.options li { margin: 6px 0; }
+.options li.chosen b { color: var(--ok); }
+.choice { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.step-num { color: var(--muted); font-weight: 400; margin-right: 6px; }
+.table-wrap { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+caption { text-align: left; color: var(--muted); padding-bottom: 6px; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+  </style></head><body><main><header class="doc-head"><div class="doc-type">Instruction booklet</div><h1>GenroPy Runner: a desktop window with card signing</h1><div class="doc-meta"><span>booklet/genropy-runner</span><span>2026-11-04</span><span>Giovanni Porcari</span></div></header><section class="part purpose"><h2>Purpose</h2>
+    <p>How to build, configure and use GenroPy Runner: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.</p>
+    <p>The project lives in <code>~/Sviluppo/tauri</code>. The signing logic is a Rust port of <code>firmatore_mac/tessere.py</code> from icond, branch <code>firma-digitale-protocolli</code>.</p>
+    <figure class="diagram"><pre class="mermaid">sequenceDiagram
+    participant Server as GenroPy server
+    participant Page as GenroPy page
+    participant Runner as Runner (Rust)
+    participant PinWindow as PIN window
+    participant Card as Card (PKCS#11)
+    Page-&gt;&gt;Server: RPC: digest of the document
+    Server--&gt;&gt;Page: SHA-256 digest (32 bytes)
+    Page-&gt;&gt;Runner: invoke card_sign(card, digest)
+    alt card closed
+        Runner-&gt;&gt;PinWindow: open local window
+        PinWindow-&gt;&gt;Runner: pin_submit(pin)
+        Runner-&gt;&gt;Card: login(pin)
+    end
+    Runner-&gt;&gt;Card: sign(DigestInfo + digest)
+    Card--&gt;&gt;Runner: RSA signature
+    Runner--&gt;&gt;Page: signature (base64)
+    Page-&gt;&gt;Server: RPC: signature + certificate</pre><figcaption>Signing from the GenroPy page</figcaption></figure>
+  </section><section class="part requires"><h2>Requirements</h2>
+    <ul>
+      <li>Rust stable (verified with 1.91) and the Tauri CLI 2: <code>cargo install tauri-cli --version "^2" --locked</code>.</li>
+      <li>macOS: Xcode or its command line tools. Windows: WebView2, preinstalled on Windows 10 and 11.</li>
+      <li>For signing: the bit4id PKCS#11 library on the machine. On Windows it comes with Firma4NG of InfoCamere, at 32 bit only.</li>
+      <li>Node is not needed: the local pages are plain HTML and JavaScript, with no bundler.</li>
+    </ul>
+  </section><section class="part steps"><h2>Steps</h2><section class="section step" id="s-layout"><h3><span class="step-num">1.</span>Know the project layout</h3>
+    <div class="table-wrap"><table><caption>Files</caption>
+      <tr><th>File</th><th>Role</th></tr>
+      <tr><td><code>src-tauri/src/lib.rs</code></td><td>Windows, menu, URL resolution, config, PIN request, all Tauri commands.</td></tr>
+      <tr><td><code>src-tauri/src/card.rs</code></td><td>Cards through PKCS#11: read, PIN login, sign, close.</td></tr>
+      <tr><td><code>src-tauri/build.rs</code></td><td>Declares the app commands, so each gets an <code>allow-&lt;command&gt;</code> permission.</td></tr>
+      <tr><td><code>src-tauri/capabilities/default.json</code></td><td>Setup window: <code>get_url</code>, <code>save_url</code>.</td></tr>
+      <tr><td><code>src-tauri/capabilities/pin.json</code></td><td>PIN window: <code>pin_request</code>, <code>pin_submit</code>, <code>pin_cancel</code>.</td></tr>
+      <tr><td><code>src-tauri/tauri.conf.json</code></td><td>Product name, identifier <code>it.softwell.genropy.runner</code>, bundle, CSP of the local pages.</td></tr>
+      <tr><td><code>setup/</code></td><td>Local pages: <code>index.html</code> (instance URL) and <code>pin.html</code> (card PIN).</td></tr>
+      <tr><td><code>src-tauri/app-icon.svg</code></td><td>Source of the icons; <code>cargo tauri icon app-icon.svg</code> writes <code>icons/</code>.</td></tr>
+    </table></div>
+  </section><section class="section step" id="s-dev"><h3><span class="step-num">2.</span>Build and run in development</h3>
+    <figure class="code"><figcaption>bash</figcaption><pre><code>cd ~/Sviluppo/tauri/src-tauri
+cargo build
+./target/debug/genropy-runner --url https://example.com/app</code></pre></figure>
+    <p><code>cargo tauri dev</code> works as well; arguments for the app go after <code>-- --</code>.</p>
+  </section><section class="section step" id="s-url"><h3><span class="step-num">3.</span>Set the instance URL</h3>
+    <p>At startup the URL is taken from the first source that has one:</p>
+    <ol>
+      <li><code>--url &lt;address&gt;</code> on the command line, for that launch only.</li>
+      <li><code>url</code> in <code>config.json</code>, in the app config directory: <code>~/Library/Application Support/it.softwell.genropy.runner/</code> on macOS, <code>%APPDATA%\it.softwell.genropy.runner\</code> on Windows.</li>
+      <li>Neither: the setup window asks for the URL and saves it in <code>config.json</code>.</li>
+    </ol>
+    <p>The menu <b>Instance → Change URL…</b> (<code>Cmd/Ctrl+Shift+U</code>) reopens the setup window. <b>Instance → Reload</b> (<code>Cmd/Ctrl+R</code>) reloads the page. Only <code>http</code> and <code>https</code> URLs are accepted.</p>
+    <figure class="code"><figcaption>config.json · json</figcaption><pre><code>{
+  "url": "https://example.com/app",
+  "pkcs11_library": "/Library/bit4id/pkcs11/libbit4xpki.dylib",
+  "session_minutes": 240
+}</code></pre></figure>
+    <p><code>pkcs11_library</code> and <code>session_minutes</code> are optional. Without <code>pkcs11_library</code> the runner looks for the bit4id library in its default locations.</p>
+  </section><section class="section step" id="s-sign"><h3><span class="step-num">4.</span>Sign from the GenroPy page</h3>
+    <p>The page in the main window calls three commands through <code>window.__TAURI__.core.invoke</code>. Outside the runner <code>window.__TAURI__</code> does not exist: the page can test it to show or hide the signing controls.</p>
+    <div class="box example"><div class="box-head"><b>Calls from the page</b></div>
+      <figure class="code"><figcaption>javascript</figcaption><pre><code>const { invoke } = window.__TAURI__.core;
+
+// Cards in the readers, no PIN needed.
+// [{fingerprint, holder, serial, valid_until, certificate, open}]
+const cards = await invoke('card_list');
+
+// digestBase64: base64 of the 32-byte SHA-256 prepared by the server.
+// Returns the base64 RSA PKCS#1 v1.5 signature of its DigestInfo.
+const signature = await invoke('card_sign', {card: cards[0].fingerprint, digest: digestBase64});
+
+await invoke('card_close', {card: cards[0].fingerprint});</code></pre></figure>
+    </div>
+    <ul>
+      <li>A card is identified by the sha256 of its signing certificate (keyUsage nonRepudiation), never by the reader.</li>
+      <li><code>certificate</code> is the DER certificate in base64: the server needs it to build the PAdES or CAdES signature.</li>
+      <li>If the card is closed, <code>card_sign</code> opens a local PIN window and waits. The PIN is typed there and never reaches the page.</li>
+      <li>The PIN window does not try the PIN when the card signals its last attempt or a locked PIN, nor when the PIN length is outside the card limits.</li>
+      <li>After a right PIN the card stays open for <code>session_minutes</code>: later signatures need no PIN.</li>
+      <li>Closing the PIN window or pressing Cancel makes <code>card_sign</code> fail with <code>PIN cancelled</code>.</li>
+    </ul>
+    <p>The server side prepares the digest and assembles the signed file: PDF and pyHanko stay on the server. In icond the RPCs for this flow from the page do not exist yet.</p>
+  </section><section class="section step" id="s-release"><h3><span class="step-num">5.</span>Build the app for distribution</h3>
+    <figure class="code"><figcaption>bash</figcaption><pre><code>cd ~/Sviluppo/tauri/src-tauri
+cargo tauri build</code></pre></figure>
+    <div class="table-wrap"><table><caption>Output on macOS (Apple Silicon)</caption>
+      <tr><th>File</th><th>Size</th></tr>
+      <tr><td><code>target/release/bundle/macos/GenroPy Runner.app</code></td><td>11.15 MiB</td></tr>
+      <tr><td><code>target/release/bundle/dmg/GenroPy Runner_0.1.0_aarch64.dmg</code></td><td>3.82 MiB</td></tr>
+    </table></div>
+    <p>The <code>.app</code> starts with a double click. Mac Intel needs a universal build:</p>
+    <figure class="code"><figcaption>bash</figcaption><pre><code>rustup target add x86_64-apple-darwin
+cargo tauri build --target universal-apple-darwin</code></pre></figure>
+    <p>Windows needs a 32-bit build, because the bit4id DLL of Firma4NG is 32-bit only and a 64-bit process cannot load it. It must be built on Windows:</p>
+    <figure class="code"><figcaption>bash</figcaption><pre><code>rustup target add i686-pc-windows-msvc
+cargo tauri build --target i686-pc-windows-msvc</code></pre></figure>
+  </section><section class="section step" id="s-check"><h3><span class="step-num">6.</span>Check the permissions</h3>
+    <p>Serve a test page on localhost and open it with <code>--url</code>. The page calls the commands and prints the result.</p>
+    <figure class="code"><figcaption>bash</figcaption><pre><code>python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
+./target/debug/genropy-runner --url http://localhost:8765/test.html</code></pre></figure>
+    <ul>
+      <li>From the configured origin, <code>card_list</code> and <code>card_sign</code> reach the Rust code. Without the library they answer <code>PKCS#11 library not found</code>.</li>
+      <li>From the same page, <code>get_url</code> and <code>pin_submit</code> are refused with <code>not allowed on window "main"</code>.</li>
+      <li>After navigating to another origin (<code>127.0.0.1</code> instead of <code>localhost</code>), <code>card_list</code> and <code>card_sign</code> are refused too.</li>
+    </ul>
+  </section></section><section class="part rules"><h2>Rules</h2>
+    <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>Build the Windows app for <code>i686-pc-windows-msvc</code>.</div><div class="muted why">The bit4id DLL of Firma4NG is 32-bit only.</div></div>
+    <div class="box rule rule-must-not"><div class="box-head"><span class="tag tag-must-not">must-not</span></div><div>Ask the PIN from the GenroPy page. The PIN window of the runner is the only place where it is typed.</div><div class="muted why">A remote page could read it.</div></div>
+    <div class="box rule rule-must-not"><div class="box-head"><span class="tag tag-must-not">must-not</span></div><div>Grant <code>card_*</code> through a static capability with a wildcard origin. The runner grants them at startup to the origin of the configured URL only.</div><div class="muted why">Any page loaded in the window would get them.</div></div>
+    <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>Identify a card by its certificate fingerprint, not by the reader.</div><div class="muted why">tessere.py, test of 2026-11-02: reader order changes between launches.</div></div>
+  </section><section class="part limits"><h2>Current limits</h2>
+    <div class="box limit"><div>Signing with a real card is not tested: the build machine has no bit4id library.</div><div class="box-foot"><code class="source">src-tauri/src/card.rs</code></div></div>
+    <div class="box limit"><div>The Windows 32-bit build and the universal macOS build are not done yet.</div></div>
+    <div class="box limit"><div>The app is signed ad hoc, with no Team ID: on another Mac Gatekeeper blocks it until it is notarized.</div></div>
+    <div class="box limit"><div>Not ported from icond: reload of the library after the Mac sleeps, detection of readers plugged in after launch.</div><div class="box-foot"><code class="source">src-tauri/src/card.rs</code></div></div>
+    <div class="box limit"><div>A granted origin keeps the card commands until the app exits, also after Change URL.</div><div class="box-foot"><code class="source">src-tauri/src/lib.rs:94</code></div></div>
+    <div class="box limit"><div>Downloads and popups (<code>window.open</code>) from the GenroPy page are not tested.</div></div>
+    <div class="box limit"><div>While a card is open, the page can ask signatures without a new PIN, as with the icond agent. There is no confirmation per signature.</div></div>
+  </section><section class="part facts"><h2>Verified facts</h2>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:82</code><span class="muted">2026-11-03</span></div><div>With <code>--url https://example.com</code> the window opens on that page, without address bar, with the host as title and the Instance menu.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:57</code><span class="muted">2026-11-03</span></div><div>Without <code>--url</code> and without <code>config.json</code> the setup window opens.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:94</code><span class="muted">2026-11-03</span></div><div>The card commands answer the configured origin and are refused to another origin in the same window.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/capabilities/default.json</code><span class="muted">2026-11-03</span></div><div>The GenroPy page cannot call <code>get_url</code> nor <code>pin_submit</code>.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/src/card.rs:26</code><span class="muted">2026-11-03</span></div><div>The card signs the SHA-256 DigestInfo prefix followed by the 32-byte digest, with mechanism CKM_RSA_PKCS, as <code>tessere.py</code> does.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/src/card.rs:34</code><span class="muted">2026-11-03</span></div><div>The default macOS library is <code>/Library/bit4id/pkcs11/libbit4xpki.dylib</code>; on Windows the UKC, Firma4NG and System32 copies of <code>bit4xpki.dll</code>, in that order.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">target/release/bundle</code><span class="muted">2026-11-03</span></div><div><code>cargo tauri build</code> produces the <code>.app</code> and the <code>.dmg</code> for arm64; the <code>.app</code> starts with <code>open</code>.</div></div>
+  </section><section class="part decisions"><h2>Decisions</h2>
+    <div class="box decision decision-decided" id="d-flow"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-flow</span></div><div class="question">How does a signing request reach the app?</div><ol class="options"><li id="d-flow-page" class="chosen"><b>Directly from the page</b><p>The page calls <code>card_sign</code> and gets the signature at once. Signing needs the runner open on that page.</p></li><li id="d-flow-poll"><b>Polling like the icond agent</b><p>The app asks icond every 30 seconds with a token. Signing works with the window closed.</p></li></ol><div class="choice"><b>Choice: Directly from the page</b><span class="muted"> (GP, 2026-11-03)</span><div>One app for window and signing, no polling.</div></div></div>
+    <div class="box decision decision-decided" id="d-stack"><div class="box-head"><span class="tag tag-decided">decided</span><span class="muted">d-stack</span></div><div class="question">Electron or Tauri?</div><ol class="options"><li id="d-stack-electron"><b>Electron</b><p>Always Chromium; bundle around 100 MB.</p></li><li id="d-stack-tauri" class="chosen"><b>Tauri 2</b><p>System webview (WebKit on macOS, WebView2 on Windows); bundle around 11 MB.</p></li></ol><div class="choice"><b>Choice: Tauri 2</b><span class="muted"> (GP, 2026-11-03)</span><div>Smaller bundle; native code in Rust.</div></div></div>
+    <div class="box decision decision-open" id="d-notarize"><div class="box-head"><span class="tag tag-open">open</span><span class="muted">d-notarize</span></div><div class="question">How is the macOS app notarized?</div><ol class="options"><li id="d-notarize-apple-id"><b>Apple ID with app-specific password</b></li><li id="d-notarize-api-key"><b>App Store Connect API key</b></li></ol></div>
+  </section></main><script type="module">
+import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+mermaid.initialize({ startOnLoad: true, theme: dark ? 'dark' : 'neutral' });
+          </script></body></html>

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pin",
+  "description": "The local PIN window. The card commands for the GenroPy page are granted at runtime to the configured origin only.",
+  "windows": ["pin"],
+  "permissions": ["core:default", "allow-pin-request", "allow-pin-submit", "allow-pin-cancel"]
+}

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Card PIN</title>
+  <link rel="stylesheet" href="setup.css">
+  <script src="pin.js" defer></script>
+</head>
+<body>
+  <form id="form">
+    <label for="pin">PIN of the card of <span id="holder"></span></label>
+    <input id="pin" type="password" autocomplete="off" required autofocus>
+    <p id="error"></p>
+    <div class="buttons">
+      <button type="button" id="cancel">Cancel</button>
+      <button type="submit" id="ok">Sign</button>
+    </div>
+  </form>
+</body>
+</html>

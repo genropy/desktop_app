@@ -1,0 +1,23 @@
+[package]
+name = "genropy-runner"
+version = "0.1.0"
+description = "Desktop window for a GenroPy instance"
+edition = "2021"
+
+[lib]
+name = "genropy_runner_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-window-state = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+cryptoki = "0.12.1"
+sha2 = "0.11.1"
+base64 = "0.23.1"
+x509-parser = "0.18.1"
+tokio = { version = "1.54.1", features = ["sync"] }

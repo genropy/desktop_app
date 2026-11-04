@@ -1,0 +1,9 @@
+:root { color-scheme: light dark; }
+body { margin: 0; padding: 24px; font: 14px -apple-system, "Segoe UI", sans-serif; }
+form { display: flex; flex-direction: column; gap: 10px; }
+label { font-weight: 600; }
+input { padding: 8px; font-size: 14px; }
+button { align-self: flex-end; padding: 6px 18px; font-size: 14px; }
+#error { margin: 0; min-height: 1.2em; color: #c0392b; }
+.buttons { display: flex; justify-content: flex-end; gap: 8px; }
+.buttons button { align-self: auto; }

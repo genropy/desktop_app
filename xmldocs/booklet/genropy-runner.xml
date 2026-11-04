@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<booklet id="booklet/genropy-runner" title="GenroPy Runner: a desktop window with card signing" date="2026-11-04" lang="en" author="Giovanni Porcari">
+  <purpose>
+    <p>How to build, configure and use GenroPy Runner: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.</p>
+    <p>The project lives in <c>~/Sviluppo/tauri</c>. The signing logic is a Rust port of <c>firmatore_mac/tessere.py</c> from icond, branch <c>firma-digitale-protocolli</c>.</p>
+    <diagram kind="mermaid" title="Signing from the GenroPy page"><![CDATA[
+sequenceDiagram
+    participant Server as GenroPy server
+    participant Page as GenroPy page
+    participant Runner as Runner (Rust)
+    participant PinWindow as PIN window
+    participant Card as Card (PKCS#11)
+    Page->>Server: RPC: digest of the document
+    Server-->>Page: SHA-256 digest (32 bytes)
+    Page->>Runner: invoke card_sign(card, digest)
+    alt card closed
+        Runner->>PinWindow: open local window
+        PinWindow->>Runner: pin_submit(pin)
+        Runner->>Card: login(pin)
+    end
+    Runner->>Card: sign(DigestInfo + digest)
+    Card-->>Runner: RSA signature
+    Runner-->>Page: signature (base64)
+    Page->>Server: RPC: signature + certificate
+]]></diagram>
+  </purpose>
+
+  <requires>
+    <list>
+      <item>Rust stable (verified with 1.91) and the Tauri CLI 2: <c>cargo install tauri-cli --version "^2" --locked</c>.</item>
+      <item>macOS: Xcode or its command line tools. Windows: WebView2, preinstalled on Windows 10 and 11.</item>
+      <item>For signing: the bit4id PKCS#11 library on the machine. On Windows it comes with Firma4NG of InfoCamere, at 32 bit only.</item>
+      <item>Node is not needed: the local pages are plain HTML and JavaScript, with no bundler.</item>
+    </list>
+  </requires>
+
+  <step id="s-layout" title="Know the project layout">
+    <table title="Files">
+      <row head="true"><cell>File</cell><cell>Role</cell></row>
+      <row><cell><c>src-tauri/src/lib.rs</c></cell><cell>Windows, menu, URL resolution, config, PIN request, all Tauri commands.</cell></row>
+      <row><cell><c>src-tauri/src/card.rs</c></cell><cell>Cards through PKCS#11: read, PIN login, sign, close.</cell></row>
+      <row><cell><c>src-tauri/build.rs</c></cell><cell>Declares the app commands, so each gets an <c>allow-&lt;command&gt;</c> permission.</cell></row>
+      <row><cell><c>src-tauri/capabilities/default.json</c></cell><cell>Setup window: <c>get_url</c>, <c>save_url</c>.</cell></row>
+      <row><cell><c>src-tauri/capabilities/pin.json</c></cell><cell>PIN window: <c>pin_request</c>, <c>pin_submit</c>, <c>pin_cancel</c>.</cell></row>
+      <row><cell><c>src-tauri/tauri.conf.json</c></cell><cell>Product name, identifier <c>it.softwell.genropy.runner</c>, bundle, CSP of the local pages.</cell></row>
+      <row><cell><c>setup/</c></cell><cell>Local pages: <c>index.html</c> (instance URL) and <c>pin.html</c> (card PIN).</cell></row>
+      <row><cell><c>src-tauri/app-icon.svg</c></cell><cell>Source of the icons; <c>cargo tauri icon app-icon.svg</c> writes <c>icons/</c>.</cell></row>
+    </table>
+  </step>
+
+  <step id="s-dev" title="Build and run in development">
+    <code lang="bash"><![CDATA[
+cd ~/Sviluppo/tauri/src-tauri
+cargo build
+./target/debug/genropy-runner --url https://example.com/app
+]]></code>
+    <p><c>cargo tauri dev</c> works as well; arguments for the app go after <c>-- --</c>.</p>
+  </step>
+
+  <step id="s-url" title="Set the instance URL">
+    <p>At startup the URL is taken from the first source that has one:</p>
+    <list ordered="true">
+      <item><c>--url &lt;address&gt;</c> on the command line, for that launch only.</item>
+      <item><c>url</c> in <c>config.json</c>, in the app config directory: <c>~/Library/Application Support/it.softwell.genropy.runner/</c> on macOS, <c>%APPDATA%\it.softwell.genropy.runner\</c> on Windows.</item>
+      <item>Neither: the setup window asks for the URL and saves it in <c>config.json</c>.</item>
+    </list>
+    <p>The menu <b>Instance → Change URL…</b> (<c>Cmd/Ctrl+Shift+U</c>) reopens the setup window. <b>Instance → Reload</b> (<c>Cmd/Ctrl+R</c>) reloads the page. Only <c>http</c> and <c>https</c> URLs are accepted.</p>
+    <code lang="json" file="config.json"><![CDATA[
+{
+  "url": "https://example.com/app",
+  "pkcs11_library": "/Library/bit4id/pkcs11/libbit4xpki.dylib",
+  "session_minutes": 240
+}
+]]></code>
+    <p><c>pkcs11_library</c> and <c>session_minutes</c> are optional. Without <c>pkcs11_library</c> the runner looks for the bit4id library in its default locations.</p>
+  </step>
+
+  <step id="s-sign" title="Sign from the GenroPy page">
+    <p>The page in the main window calls three commands through <c>window.__TAURI__.core.invoke</c>. Outside the runner <c>window.__TAURI__</c> does not exist: the page can test it to show or hide the signing controls.</p>
+    <example title="Calls from the page">
+      <code lang="javascript"><![CDATA[
+const { invoke } = window.__TAURI__.core;
+
+// Cards in the readers, no PIN needed.
+// [{fingerprint, holder, serial, valid_until, certificate, open}]
+const cards = await invoke('card_list');
+
+// digestBase64: base64 of the 32-byte SHA-256 prepared by the server.
+// Returns the base64 RSA PKCS#1 v1.5 signature of its DigestInfo.
+const signature = await invoke('card_sign', {card: cards[0].fingerprint, digest: digestBase64});
+
+await invoke('card_close', {card: cards[0].fingerprint});
+]]></code>
+    </example>
+    <list>
+      <item>A card is identified by the sha256 of its signing certificate (keyUsage nonRepudiation), never by the reader.</item>
+      <item><c>certificate</c> is the DER certificate in base64: the server needs it to build the PAdES or CAdES signature.</item>
+      <item>If the card is closed, <c>card_sign</c> opens a local PIN window and waits. The PIN is typed there and never reaches the page.</item>
+      <item>The PIN window does not try the PIN when the card signals its last attempt or a locked PIN, nor when the PIN length is outside the card limits.</item>
+      <item>After a right PIN the card stays open for <c>session_minutes</c>: later signatures need no PIN.</item>
+      <item>Closing the PIN window or pressing Cancel makes <c>card_sign</c> fail with <c>PIN cancelled</c>.</item>
+    </list>
+    <p>The server side prepares the digest and assembles the signed file: PDF and pyHanko stay on the server. In icond the RPCs for this flow from the page do not exist yet.</p>
+  </step>
+
+  <step id="s-release" title="Build the app for distribution">
+    <code lang="bash"><![CDATA[
+cd ~/Sviluppo/tauri/src-tauri
+cargo tauri build
+]]></code>
+    <table title="Output on macOS (Apple Silicon)">
+      <row head="true"><cell>File</cell><cell>Size</cell></row>
+      <row><cell><c>target/release/bundle/macos/GenroPy Runner.app</c></cell><cell>11.15 MiB</cell></row>
+      <row><cell><c>target/release/bundle/dmg/GenroPy Runner_0.1.0_aarch64.dmg</c></cell><cell>3.82 MiB</cell></row>
+    </table>
+    <p>The <c>.app</c> starts with a double click. Mac Intel needs a universal build:</p>
+    <code lang="bash"><![CDATA[
+rustup target add x86_64-apple-darwin
+cargo tauri build --target universal-apple-darwin
+]]></code>
+    <p>Windows needs a 32-bit build, because the bit4id DLL of Firma4NG is 32-bit only and a 64-bit process cannot load it. It must be built on Windows:</p>
+    <code lang="bash"><![CDATA[
+rustup target add i686-pc-windows-msvc
+cargo tauri build --target i686-pc-windows-msvc
+]]></code>
+  </step>
+
+  <step id="s-check" title="Check the permissions">
+    <p>Serve a test page on localhost and open it with <c>--url</c>. The page calls the commands and prints the result.</p>
+    <code lang="bash"><![CDATA[
+python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
+./target/debug/genropy-runner --url http://localhost:8765/test.html
+]]></code>
+    <list>
+      <item>From the configured origin, <c>card_list</c> and <c>card_sign</c> reach the Rust code. Without the library they answer <c>PKCS#11 library not found</c>.</item>
+      <item>From the same page, <c>get_url</c> and <c>pin_submit</c> are refused with <c>not allowed on window "main"</c>.</item>
+      <item>After navigating to another origin (<c>127.0.0.1</c> instead of <c>localhost</c>), <c>card_list</c> and <c>card_sign</c> are refused too.</item>
+    </list>
+  </step>
+
+  <rules>
+    <rule level="must" why="The bit4id DLL of Firma4NG is 32-bit only.">Build the Windows app for <c>i686-pc-windows-msvc</c>.</rule>
+    <rule level="must-not" why="A remote page could read it.">Ask the PIN from the GenroPy page. The PIN window of the runner is the only place where it is typed.</rule>
+    <rule level="must-not" why="Any page loaded in the window would get them.">Grant <c>card_*</c> through a static capability with a wildcard origin. The runner grants them at startup to the origin of the configured URL only.</rule>
+    <rule level="must" why="tessere.py, test of 2026-11-02: reader order changes between launches.">Identify a card by its certificate fingerprint, not by the reader.</rule>
+  </rules>
+
+  <limits>
+    <limit source="src-tauri/src/card.rs">Signing with a real card is not tested: the build machine has no bit4id library.</limit>
+    <limit>The Windows 32-bit build and the universal macOS build are not done yet.</limit>
+    <limit>The app is signed ad hoc, with no Team ID: on another Mac Gatekeeper blocks it until it is notarized.</limit>
+    <limit source="src-tauri/src/card.rs">Not ported from icond: reload of the library after the Mac sleeps, detection of readers plugged in after launch.</limit>
+    <limit source="src-tauri/src/lib.rs:94">A granted origin keeps the card commands until the app exits, also after Change URL.</limit>
+    <limit>Downloads and popups (<c>window.open</c>) from the GenroPy page are not tested.</limit>
+    <limit>While a card is open, the page can ask signatures without a new PIN, as with the icond agent. There is no confirmation per signature.</limit>
+  </limits>
+
+  <facts>
+    <fact source="src-tauri/src/lib.rs:82" method="run" verified="2026-11-03">With <c>--url https://example.com</c> the window opens on that page, without address bar, with the host as title and the Instance menu.</fact>
+    <fact source="src-tauri/src/lib.rs:57" method="run" verified="2026-11-03">Without <c>--url</c> and without <c>config.json</c> the setup window opens.</fact>
+    <fact source="src-tauri/src/lib.rs:94" method="run" verified="2026-11-03">The card commands answer the configured origin and are refused to another origin in the same window.</fact>
+    <fact source="src-tauri/capabilities/default.json" method="run" verified="2026-11-03">The GenroPy page cannot call <c>get_url</c> nor <c>pin_submit</c>.</fact>
+    <fact source="src-tauri/src/card.rs:26" method="read" verified="2026-11-03">The card signs the SHA-256 DigestInfo prefix followed by the 32-byte digest, with mechanism CKM_RSA_PKCS, as <c>tessere.py</c> does.</fact>
+    <fact source="src-tauri/src/card.rs:34" method="read" verified="2026-11-03">The default macOS library is <c>/Library/bit4id/pkcs11/libbit4xpki.dylib</c>; on Windows the UKC, Firma4NG and System32 copies of <c>bit4xpki.dll</c>, in that order.</fact>
+    <fact source="target/release/bundle" method="run" verified="2026-11-03"><c>cargo tauri build</c> produces the <c>.app</c> and the <c>.dmg</c> for arm64; the <c>.app</c> starts with <c>open</c>.</fact>
+  </facts>
+
+  <decisions>
+    <decision id="d-flow" status="decided">
+      <question>How does a signing request reach the app?</question>
+      <option id="d-flow-page" title="Directly from the page"><p>The page calls <c>card_sign</c> and gets the signature at once. Signing needs the runner open on that page.</p></option>
+      <option id="d-flow-poll" title="Polling like the icond agent"><p>The app asks icond every 30 seconds with a token. Signing works with the window closed.</p></option>
+      <choice option="d-flow-page" by="GP" date="2026-11-03">One app for window and signing, no polling.</choice>
+    </decision>
+    <decision id="d-stack" status="decided">
+      <question>Electron or Tauri?</question>
+      <option id="d-stack-electron" title="Electron"><p>Always Chromium; bundle around 100 MB.</p></option>
+      <option id="d-stack-tauri" title="Tauri 2"><p>System webview (WebKit on macOS, WebView2 on Windows); bundle around 11 MB.</p></option>
+      <choice option="d-stack-tauri" by="GP" date="2026-11-03">Smaller bundle; native code in Rust.</choice>
+    </decision>
+    <decision id="d-notarize" status="open">
+      <question>How is the macOS app notarized?</question>
+      <option id="d-notarize-apple-id" title="Apple ID with app-specific password"/>
+      <option id="d-notarize-api-key" title="App Store Connect API key"/>
+    </decision>
+  </decisions>
+</booklet>
