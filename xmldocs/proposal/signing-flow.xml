@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proposal id="proposal/signing-flow" title="Signing server PDFs with the GenroPy Runner" date="2026-11-04" lang="en" author="Giovanni Porcari" status="draft">
+  <problem>
+    <p>A GenroPy application produces PDFs on the server. A user must sign them with a qualified signature, using a smart card or a USB key on the user's own Mac or PC.</p>
+    <list>
+      <item>A page in a normal browser cannot reach the card: no web API gives access to the keys of a smart card.</item>
+      <item>The private key never leaves the card, so the signature is computed on the user's machine.</item>
+      <item>The PDF is built and kept on the server, and must stay there.</item>
+    </list>
+  </problem>
+
+  <current>
+    <p>icond signs its documents in two steps, with an agent on an office Mac (<c>firmatore_mac/</c>, branch <c>firma-digitale-protocolli</c>).</p>
+    <list ordered="true">
+      <item>In the browser the signer authorizes the document. The server prepares the PDF and marks it as waiting for signature.</item>
+      <item>The agent, a separate Python app in the menu bar, asks the server every 30 seconds for the next document of an open card (<c>prossimo</c>), with a Bearer token.</item>
+      <item>The server, with pyHanko, adds the visible stamp and the signature field, computes the CMS signed attributes and returns their SHA-256: 32 bytes. The half-built PDF and its state stay on the server.</item>
+      <item>The card signs the 32 bytes. The agent sends back the 256-byte signature (<c>consegna</c>).</item>
+      <item>The server verifies the signature with the public key of the certificate, completes the CMS and closes the PDF incrementally.</item>
+    </list>
+    <p>Browser and agent never talk to each other: they meet only on the server. The server side is <c>preparaFirma</c> and <c>completaFirma</c> in <c>studio/lib/firma_digitale.py</c>, on <c>PdfSigner.async_digest_doc_for_signing</c> and <c>PdfTBSDocument.async_finish_signing</c> of pyHanko 0.38.</p>
+  </current>
+
+  <solution>
+    <p>The GenroPy Runner replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.</p>
+
+    <section title="Direct mode: the page runs inside the runner">
+      <p>The page in the runner window calls the card commands itself. Authorization and signature become the same click, and the result is immediate.</p>
+      <diagram kind="mermaid" title="Direct mode"><![CDATA[
+sequenceDiagram
+    actor User
+    participant Page as GenroPy page (runner window)
+    participant Runner as Runner (Rust)
+    participant Card as Card (PKCS#11)
+    participant Server as GenroPy server (pyHanko)
+    User->>Page: chooses documents, clicks Sign
+    Page->>Runner: card_list
+    Runner->>Card: read certificate (no PIN)
+    Runner-->>Page: cards with certificate
+    Page->>Server: RPC: document id + certificate
+    Server-->>Page: 32-byte digest
+    Page->>Runner: card_sign(fingerprint, digest)
+    Runner->>User: PIN window, only if the card is closed
+    Runner->>Card: sign DigestInfo SHA-256 (CKM_RSA_PKCS)
+    Runner-->>Page: 256-byte signature
+    Page->>Server: RPC: signature
+    Server->>Server: verify, complete CMS, close PDF
+    Server-->>Page: signed
+]]></diagram>
+      <list ordered="true">
+        <item>The page calls <c>card_list</c>. The runner reads the signing certificate of each card without PIN and returns it with its fingerprint.</item>
+        <item>The page sends the document id and the chosen certificate to the server with an RPC. The server runs <c>preparaFirma</c> and returns the digest.</item>
+        <item>The page calls <c>card_sign</c> with the fingerprint and the digest. If the card is closed, the runner opens its local PIN window first. The PIN never reaches the page.</item>
+        <item>The page sends the signature to the server with an RPC. The server runs <c>completaFirma</c>.</item>
+      </list>
+      <p>The page can show the PDF before the click, so the user sees what is signed. With several documents the page repeats steps 2 to 4 for each one, and the PIN is asked once.</p>
+    </section>
+
+    <section title="Queue mode: the user works in a browser">
+      <p>The page is open in Safari or another browser, where the card commands do not exist. The runner works as the icond agent does: it signs, in the background, the documents the user has authorized in the browser.</p>
+      <list ordered="true">
+        <item>The user authorizes the documents in the browser.</item>
+        <item>For each open card the runner asks the server for the next document, with a token of the signing service.</item>
+        <item>The runner signs the digest and delivers the signature. The server closes the PDF.</item>
+        <item>The browser shows the document as signed at its next refresh.</item>
+      </list>
+      <p>The runner asks only for open cards: with no open card it sends no request. The connection is always opened by the runner, so no port is opened on the user's machine. A WebSocket from the runner can replace the 30-second poll, with the server announcing new documents.</p>
+      <p>Queue mode does not exist in the runner yet. It needs the token, the two calls and the loop.</p>
+    </section>
+
+    <section title="What each part does">
+      <table title="Parts and responsibilities">
+        <row head="true"><cell>Part</cell><cell>Does</cell><cell>Does not</cell></row>
+        <row><cell>GenroPy server</cell><cell>Builds the PDF, adds stamp and field, computes the digest, verifies the signature, closes the PDF, keeps the state</cell><cell>Touch the card or the PIN</cell></row>
+        <row><cell>GenroPy page</cell><cell>Shows the documents, starts the signature (direct mode), carries digest and signature between server and runner</cell><cell>See the PIN or the PDF bytes being signed</cell></row>
+        <row><cell>Runner</cell><cell>Reads cards, asks the PIN in a local window, keeps the card session, signs 32 bytes, polls the server (queue mode)</cell><cell>Receive or build the PDF</cell></row>
+        <row><cell>Card</cell><cell>Holds the key, signs</cell><cell>Release the key</cell></row>
+      </table>
+    </section>
+
+    <section title="Cards and libraries">
+      <list>
+        <item>The runner loads every PKCS#11 library it finds: bit4id (InfoCamere, Aruba, the CNS Bit4id cards with Actalis certificates used by icond), Athena, OpenSC, and the paths in <c>pkcs11_libraries</c> of <c>config.json</c>.</item>
+        <item>A USB key is a card with its reader built in: the runner reads it in the same way, given its library.</item>
+        <item>A card is identified by the SHA-256 of its signing certificate, never by the reader.</item>
+        <item>On macOS a second route exists: CryptoTokenKit, where the system exposes the card when its vendor installs a token driver. Not implemented.</item>
+      </list>
+    </section>
+
+    <section title="Lessons from icond">
+      <table title="Lessons and state in the runner">
+        <row head="true"><cell>Lesson</cell><cell>Runner</cell></row>
+        <row><cell>Sign after merging and numbering: rewriting a signed PDF breaks the signature</cell><cell>Server side, unchanged</cell></row>
+        <row><cell>The stamp goes in the page content, not in the appearance of the signature field</cell><cell>Server side, unchanged</cell></row>
+        <row><cell>One PIN, many signatures: the CNS Bit4id cards sign many digests with one login</cell><cell>Done: session of <c>session_minutes</c>, default 240</cell></row>
+        <row><cell>Do not try the PIN when the card signals its last attempt or a locked PIN</cell><cell>Done</cell></row>
+        <row><cell>The bit4id library fixes the readers when it loads: after sleep, or with a reader plugged in later, it no longer sees the cards. Reload it then, only with no open card</cell><cell>Missing: the runner loads the libraries once</cell></row>
+        <row><cell>No timestamp: the server time is the reference</cell><cell>Server side, unchanged</cell></row>
+      </table>
+    </section>
+
+    <section title="Remote signature">
+      <p>The server side takes 32 bytes and receives a signature: it does not depend on the card. A provider of remote signature in hash mode, with PIN and OTP from a phone app, fits the same server calls without the runner and without a reader. icond tested it in a sandbox.</p>
+    </section>
+  </solution>
+
+  <decisions>
+    <decision id="d-mode" status="open">
+      <question>Which modes does the runner implement?</question>
+      <option id="d-mode-direct" title="Direct only"><p>Every signer uses the page inside the runner. No polling.</p></option>
+      <option id="d-mode-queue" title="Queue only"><p>The runner replaces the icond agent; users stay in the browser.</p></option>
+      <option id="d-mode-both" title="Both"><p>Direct when the page runs in the runner, queue for the documents authorized from a browser.</p></option>
+    </decision>
+    <decision id="d-pin" status="open">
+      <question>When is the PIN asked?</question>
+      <option id="d-pin-session" title="Once per session"><p>As today: the card stays open for <c>session_minutes</c>. Suits batch signing. The runner signs any digest the page sends while the card is open.</p></option>
+      <option id="d-pin-each" title="At every signature"><p>The PIN window shows the document name sent by the page. Slower for batches.</p></option>
+    </decision>
+    <decision id="d-reload" status="proposed">
+      <question>How does the runner see cards after sleep or a new reader?</question>
+      <option id="d-reload-icond" title="Reload the libraries as icond does"><p>On wake and when a reader appears, only with no open card.</p></option>
+    </decision>
+  </decisions>
+
+  <consequences>
+    <list>
+      <item>The server needs two RPCs for the page in direct mode, around <c>preparaFirma</c> and <c>completaFirma</c>. The queue mode reuses the icond calls.</item>
+      <item>The icond agent and the runner can coexist during the transition: the server does not know which one signed.</item>
+      <item>When the card logic moves to the Python sidecar (<ref doc="proposal/device-sidecar" to="d-modules">device-sidecar</ref>), the page calls <c>device_call</c> instead of <c>card_sign</c>. The flow does not change.</item>
+    </list>
+  </consequences>
+
+  <related>
+    <doc id="booklet/genropy-runner" type="booklet">GenroPy Runner: a desktop window with card signing</doc>
+    <doc id="proposal/device-sidecar" type="proposal">Local devices through a Python sidecar</doc>
+  </related>
+</proposal>
