@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- generated from guida-firma.xml by xmldocs: do not edit, edit the XML -->
-<html lang="it"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Firmare i documenti con GenroPy Runner</title><style>
+<html lang="it"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>icond app: lavorare e firmare dal Mac</title><style>
 :root {
   --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8; --panel: #f3f1ec;
   --code-bg: #f0eee8; --accent: #2f5d8a;
@@ -86,36 +86,46 @@ table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
 caption { text-align: left; color: var(--muted); padding-bottom: 6px; }
 th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
 th { background: var(--panel); }
-  </style></head><body><main><header class="doc-head"><div class="doc-type">Instruction booklet</div><h1>Firmare i documenti con GenroPy Runner</h1><div class="doc-meta"><span>booklet/guida-firma</span><span>2026-11-04</span><span>Giovanni Porcari</span></div></header><section class="part purpose"><h2>Purpose</h2>
-    <p>Questa guida spiega come firmare digitalmente i documenti del gestionale dal proprio Mac, con la tessera o la chiavetta di firma.</p>
+  </style></head><body><main><header class="doc-head"><div class="doc-type">Instruction booklet</div><h1>icond app: lavorare e firmare dal Mac</h1><div class="doc-meta"><span>booklet/guida-firma</span><span>2026-11-04</span><span>Giovanni Porcari</span></div></header><section class="part purpose"><h2>Purpose</h2>
+    <p>Invece del browser si usa <b>icond app</b>: un'app che si scarica sul Mac, con il logo di icond.</p>
+    <ul>
+      <li>Con icond app si lavora come nel browser, con le stesse pagine e lo stesso utente.</li>
+      <li>Non c'è la barra di navigazione né le schede: la finestra mostra solo icond.</li>
+      <li>In genere è più veloce del browser.</li>
+    </ul>
+    <p>Essendo un'app installata sul Mac, icond app può usare servizi del computer che dal browser non sono raggiungibili, e librerie Python che girano sul Mac o sul PC. Per esempio:</p>
+    <ul>
+      <li>stampare sulle stampanti dell'ufficio;</li>
+      <li>tenere d'occhio una cartella del Finder e caricare in icond i documenti che vi si trascinano;</li>
+      <li>usare il lettore di tessere per la firma digitale.</li>
+    </ul>
+    <p>Questa guida riguarda la firma digitale. Si individua il documento, o i documenti, e si dà l'ordine di firmare. Tutto avviene dentro icond app: non servono altre applicazioni.</p>
     <p>Il documento resta sempre sul server. Sul Mac arriva solo un codice di controllo del documento: la tessera lo firma e la firma torna al server, che la applica al PDF. Il PIN non esce mai dal Mac.</p>
   </section><section class="part requires"><h2>Requirements</h2>
     <ul>
-      <li>L'app <b>GenroPy Runner</b> installata sul Mac.</li>
+      <li><b>icond app</b> installata sul Mac.</li>
       <li>La tessera di firma digitale con il suo lettore USB, oppure la chiavetta USB di firma.</li>
       <li>Il programma del fornitore della tessera installato sul Mac, per esempio bit4id per le tessere InfoCamere, Aruba e Actalis.</li>
       <li>Il PIN della tessera.</li>
-      <li>L'indirizzo del gestionale, che fornisce l'amministratore.</li>
     </ul>
-  </section><section class="part steps"><h2>Steps</h2><section class="section step" id="s-apri"><h3><span class="step-num">1.</span>Aprire l'app</h3>
+  </section><section class="part steps"><h2>Steps</h2><section class="section step" id="s-apri"><h3><span class="step-num">1.</span>Aprire icond app</h3>
     <ol>
-      <li>Apri <b>GenroPy Runner</b> con un doppio clic.</li>
-      <li>La prima volta l'app chiede l'indirizzo del gestionale. Scrivilo e conferma: dalla volta successiva l'app si apre direttamente sul gestionale.</li>
+      <li>Apri <b>icond app</b> con un doppio clic, dalla cartella Applicazioni o dal Dock.</li>
       <li>Entra con il tuo utente e la tua password, come nel browser.</li>
     </ol>
-    <p>La finestra non ha barra degli indirizzi né schede: è il gestionale e basta. Il menu <b>Instance → Reload</b> ricarica la pagina; <b>Instance → Change URL…</b> cambia l'indirizzo.</p>
+    <p>Se la prima volta l'app chiede l'indirizzo di icond, lo fornisce l'amministratore. Il menu <b>Instance → Reload</b> ricarica la pagina.</p>
   </section><section class="section step" id="s-tessera"><h3><span class="step-num">2.</span>Inserire la tessera</h3>
     <p>Inserisci la tessera nel lettore, o la chiavetta in una porta USB, prima di firmare. L'app riconosce la tessera dal suo certificato: non importa quale lettore usi.</p>
   </section><section class="section step" id="s-firma"><h3><span class="step-num">3.</span>Firmare</h3>
     <ol>
-      <li>Apri l'elenco dei documenti da firmare.</li>
+      <li>In icond individua il documento da firmare, o seleziona più documenti.</li>
       <li>Apri il PDF e controlla che sia quello giusto.</li>
-      <li>Seleziona uno o più documenti e premi il pulsante di firma.</li>
+      <li>Dai l'ordine di firmare.</li>
       <li>Se più tessere sono inserite, scegli la tua.</li>
       <li>Si apre la finestra del PIN, con il nome del titolare della tessera. Scrivi il PIN e premi <b>Sign</b>.</li>
       <li>I documenti risultano firmati. Da qui possono partire per mail, PEC o posta.</li>
     </ol>
-    <p><b>La finestra del PIN è dell'app, non del gestionale.</b> Il PIN non passa mai dalla pagina né dalla rete.</p>
+    <p><b>La finestra del PIN è di icond app, non della pagina di icond.</b> Il PIN non passa mai dalla pagina né dalla rete.</p>
   </section><section class="section step" id="s-sessione"><h3><span class="step-num">4.</span>Un PIN per molte firme</h3>
     <p>Dopo il PIN la tessera resta aperta per alcune ore, di solito 4. In quel tempo le firme successive non chiedono di nuovo il PIN.</p>
     <p>Per chiudere la tessera prima, estraila dal lettore o chiudi l'app. Alla firma successiva l'app chiede di nuovo il PIN.</p>
@@ -129,12 +139,12 @@ th { background: var(--panel); }
       <tr><td>La pagina non risponde</td><td>Usa <b>Instance → Reload</b>.</td></tr>
     </table></div>
   </section></section><section class="part rules"><h2>Rules</h2>
-    <div class="box rule rule-must-not"><div class="box-head"><span class="tag tag-must-not">must-not</span></div><div>Scrivere il PIN in una pagina del gestionale o del browser. Il PIN si scrive solo nella finestra dell'app.</div><div class="muted why">Il gestionale non chiede mai il PIN.</div></div>
+    <div class="box rule rule-must-not"><div class="box-head"><span class="tag tag-must-not">must-not</span></div><div>Scrivere il PIN in una pagina di icond o del browser. Il PIN si scrive solo nella finestra di icond app.</div><div class="muted why">icond non chiede mai il PIN nelle sue pagine.</div></div>
     <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>Estrarre la tessera, o chiudere l'app, quando ci si allontana dal Mac.</div><div class="muted why">Con la tessera aperta le firme non chiedono il PIN.</div></div>
     <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>Controllare il documento prima di firmarlo.</div><div class="muted why">La firma vale come la firma autografa.</div></div>
   </section><section class="part limits"><h2>Current limits</h2>
-    <div class="box limit"><div>Bozza: descrive il funzionamento previsto. Il pulsante di firma nelle pagine del gestionale è da realizzare.</div></div>
-    <div class="box limit"><div>La firma funziona solo dentro l'app. Dal browser (Safari, Chrome) la firma diretta non è disponibile.</div></div>
+    <div class="box limit"><div>Bozza: descrive il funzionamento previsto. icond app con nome e logo di icond, e il comando di firma nelle pagine di icond, sono da realizzare.</div></div>
+    <div class="box limit"><div>La firma funziona solo dentro icond app. Dal browser (Safari, Chrome) non è disponibile.</div></div>
     <div class="box limit"><div>La finestra del PIN e i menu dell'app sono in inglese.</div></div>
   </section><section class="part related"><h2>Related documents</h2><ul>
     <li><a href="../proposal/signing-flow.html">proposal/signing-flow</a><span class="tag">proposal</span> — Signing server PDFs with the GenroPy Runner</li>

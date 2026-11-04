@@ -1,27 +1,37 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<booklet id="booklet/guida-firma" title="Firmare i documenti con GenroPy Runner" date="2026-11-04" lang="it" author="Giovanni Porcari">
+<booklet id="booklet/guida-firma" title="icond app: lavorare e firmare dal Mac" date="2026-11-04" lang="it" author="Giovanni Porcari">
   <purpose>
-    <p>Questa guida spiega come firmare digitalmente i documenti del gestionale dal proprio Mac, con la tessera o la chiavetta di firma.</p>
+    <p>Invece del browser si usa <b>icond app</b>: un'app che si scarica sul Mac, con il logo di icond.</p>
+    <list>
+      <item>Con icond app si lavora come nel browser, con le stesse pagine e lo stesso utente.</item>
+      <item>Non c'è la barra di navigazione né le schede: la finestra mostra solo icond.</item>
+      <item>In genere è più veloce del browser.</item>
+    </list>
+    <p>Essendo un'app installata sul Mac, icond app può usare servizi del computer che dal browser non sono raggiungibili, e librerie Python che girano sul Mac o sul PC. Per esempio:</p>
+    <list>
+      <item>stampare sulle stampanti dell'ufficio;</item>
+      <item>tenere d'occhio una cartella del Finder e caricare in icond i documenti che vi si trascinano;</item>
+      <item>usare il lettore di tessere per la firma digitale.</item>
+    </list>
+    <p>Questa guida riguarda la firma digitale. Si individua il documento, o i documenti, e si dà l'ordine di firmare. Tutto avviene dentro icond app: non servono altre applicazioni.</p>
     <p>Il documento resta sempre sul server. Sul Mac arriva solo un codice di controllo del documento: la tessera lo firma e la firma torna al server, che la applica al PDF. Il PIN non esce mai dal Mac.</p>
   </purpose>
 
   <requires>
     <list>
-      <item>L'app <b>GenroPy Runner</b> installata sul Mac.</item>
+      <item><b>icond app</b> installata sul Mac.</item>
       <item>La tessera di firma digitale con il suo lettore USB, oppure la chiavetta USB di firma.</item>
       <item>Il programma del fornitore della tessera installato sul Mac, per esempio bit4id per le tessere InfoCamere, Aruba e Actalis.</item>
       <item>Il PIN della tessera.</item>
-      <item>L'indirizzo del gestionale, che fornisce l'amministratore.</item>
     </list>
   </requires>
 
-  <step id="s-apri" title="Aprire l'app">
+  <step id="s-apri" title="Aprire icond app">
     <list ordered="true">
-      <item>Apri <b>GenroPy Runner</b> con un doppio clic.</item>
-      <item>La prima volta l'app chiede l'indirizzo del gestionale. Scrivilo e conferma: dalla volta successiva l'app si apre direttamente sul gestionale.</item>
+      <item>Apri <b>icond app</b> con un doppio clic, dalla cartella Applicazioni o dal Dock.</item>
       <item>Entra con il tuo utente e la tua password, come nel browser.</item>
     </list>
-    <p>La finestra non ha barra degli indirizzi né schede: è il gestionale e basta. Il menu <b>Instance → Reload</b> ricarica la pagina; <b>Instance → Change URL…</b> cambia l'indirizzo.</p>
+    <p>Se la prima volta l'app chiede l'indirizzo di icond, lo fornisce l'amministratore. Il menu <b>Instance → Reload</b> ricarica la pagina.</p>
   </step>
 
   <step id="s-tessera" title="Inserire la tessera">
@@ -30,14 +40,14 @@
 
   <step id="s-firma" title="Firmare">
     <list ordered="true">
-      <item>Apri l'elenco dei documenti da firmare.</item>
+      <item>In icond individua il documento da firmare, o seleziona più documenti.</item>
       <item>Apri il PDF e controlla che sia quello giusto.</item>
-      <item>Seleziona uno o più documenti e premi il pulsante di firma.</item>
+      <item>Dai l'ordine di firmare.</item>
       <item>Se più tessere sono inserite, scegli la tua.</item>
       <item>Si apre la finestra del PIN, con il nome del titolare della tessera. Scrivi il PIN e premi <b>Sign</b>.</item>
       <item>I documenti risultano firmati. Da qui possono partire per mail, PEC o posta.</item>
     </list>
-    <p><b>La finestra del PIN è dell'app, non del gestionale.</b> Il PIN non passa mai dalla pagina né dalla rete.</p>
+    <p><b>La finestra del PIN è di icond app, non della pagina di icond.</b> Il PIN non passa mai dalla pagina né dalla rete.</p>
   </step>
 
   <step id="s-sessione" title="Un PIN per molte firme">
@@ -57,14 +67,14 @@
   </step>
 
   <rules>
-    <rule level="must-not" why="Il gestionale non chiede mai il PIN.">Scrivere il PIN in una pagina del gestionale o del browser. Il PIN si scrive solo nella finestra dell'app.</rule>
+    <rule level="must-not" why="icond non chiede mai il PIN nelle sue pagine.">Scrivere il PIN in una pagina di icond o del browser. Il PIN si scrive solo nella finestra di icond app.</rule>
     <rule level="must" why="Con la tessera aperta le firme non chiedono il PIN.">Estrarre la tessera, o chiudere l'app, quando ci si allontana dal Mac.</rule>
     <rule level="must" why="La firma vale come la firma autografa.">Controllare il documento prima di firmarlo.</rule>
   </rules>
 
   <limits>
-    <limit>Bozza: descrive il funzionamento previsto. Il pulsante di firma nelle pagine del gestionale è da realizzare.</limit>
-    <limit>La firma funziona solo dentro l'app. Dal browser (Safari, Chrome) la firma diretta non è disponibile.</limit>
+    <limit>Bozza: descrive il funzionamento previsto. icond app con nome e logo di icond, e il comando di firma nelle pagine di icond, sono da realizzare.</limit>
+    <limit>La firma funziona solo dentro icond app. Dal browser (Safari, Chrome) non è disponibile.</limit>
     <limit>La finestra del PIN e i menu dell'app sono in inglese.</limit>
   </limits>
 
