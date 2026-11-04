@@ -1,8 +1,9 @@
-//! Signing cards read through the bit4id PKCS#11 library.
+//! Signing cards read through every PKCS#11 library found on the machine.
 //!
 //! Port of `firmatore_mac/tessere.py` (icond, branch firma-digitale-protocolli).
 //! A card is identified by the sha256 of its signing certificate (DER), never by the
-//! reader: the reader order changes between launches. The PIN is only used for the
+//! reader or the library: the reader order changes between launches, and two libraries
+//! can read the same card. The PIN is only used for the
 //! login and is not kept; the logged-in session stays open until it expires, the card
 //! is removed or the app exits.
 
@@ -28,10 +29,15 @@ const DIGESTINFO_SHA256: [u8; 19] = [
     0x20,
 ];
 
-/// Default library locations, as in `sistema.py`. On Windows Firma4NG installs the
-/// library only at 32 bit, so the app must be a 32-bit build there.
+/// Default library locations: bit4id (InfoCamere, Aruba) as in `sistema.py`, Athena
+/// (Actalis cards) and OpenSC. On Windows Firma4NG installs the library only at 32 bit,
+/// so the app must be a 32-bit build there.
 #[cfg(target_os = "macos")]
-const LIBRARIES: &[&str] = &["/Library/bit4id/pkcs11/libbit4xpki.dylib"];
+const LIBRARIES: &[&str] = &[
+    "/Library/bit4id/pkcs11/libbit4xpki.dylib",
+    "/Library/Application Support/Athena/libASEP11.dylib",
+    "/Library/OpenSC/lib/opensc-pkcs11.so",
+];
 #[cfg(target_os = "windows")]
 const LIBRARIES: &[&str] = &[
     r"C:\Program Files (x86)\Bit4id\UKC\UKC\etc\idprovider_smartcard\bit4xpki.dll",
@@ -41,16 +47,20 @@ const LIBRARIES: &[&str] = &[
 #[cfg(not(any(target_os = "macos", target_os = "windows")))]
 const LIBRARIES: &[&str] = &["/usr/lib/libbit4xpki.so"];
 
-/// The configured library, or the first default one that exists.
-pub fn library_path(configured: Option<&str>) -> Result<String, String> {
-    if let Some(path) = configured {
-        return Ok(path.to_string());
+/// The configured libraries, then the default ones, keeping those that exist.
+pub fn library_paths(configured: &[String]) -> Result<Vec<String>, String> {
+    let mut candidates: Vec<String> = configured.to_vec();
+    candidates.extend(LIBRARIES.iter().map(|path| path.to_string()));
+    let mut found: Vec<String> = Vec::new();
+    for path in &candidates {
+        if Path::new(path).exists() && !found.contains(path) {
+            found.push(path.clone());
+        }
     }
-    LIBRARIES
-        .iter()
-        .find(|path| Path::new(path).exists())
-        .map(|path| path.to_string())
-        .ok_or_else(|| format!("PKCS#11 library not found in: {}", LIBRARIES.join(", ")))
+    if found.is_empty() {
+        return Err(format!("no PKCS#11 library found in: {}", candidates.join(", ")));
+    }
+    Ok(found)
 }
 
 struct Card {
@@ -60,6 +70,8 @@ struct Card {
     valid_until: String,
     der: Vec<u8>,
     ckid: Vec<u8>,
+    /// Index in `Cards::modules` of the library that reads the card.
+    module: usize,
     slot: Slot,
     session: Option<Session>,
     open_until: Option<SystemTime>,
@@ -88,33 +100,49 @@ pub struct PinRequest {
 }
 
 pub struct Cards {
-    pkcs11: Pkcs11,
+    modules: Vec<Pkcs11>,
     cards: HashMap<String, Card>,
 }
 
 impl Cards {
-    pub fn load(library: &str) -> Result<Self, String> {
-        let pkcs11 = Pkcs11::new(library).map_err(|e| format!("{library}: {e}"))?;
-        pkcs11
-            .initialize(CInitializeArgs::new(CInitializeFlags::OS_LOCKING_OK))
-            .map_err(|e| format!("{library}: {e}"))?;
-        Ok(Self { pkcs11, cards: HashMap::new() })
+    /// Loads every library in `libraries`. A library that fails is reported on stderr
+    /// and left out; the error is returned only when none loads.
+    pub fn load(libraries: &[String]) -> Result<Self, String> {
+        let mut modules = Vec::new();
+        let mut errors = Vec::new();
+        for library in libraries {
+            match load_module(library) {
+                Ok(pkcs11) => modules.push(pkcs11),
+                Err(e) => errors.push(e),
+            }
+        }
+        if modules.is_empty() {
+            return Err(errors.join("; "));
+        }
+        for error in errors {
+            eprintln!("card: {error}");
+        }
+        Ok(Self { modules, cards: HashMap::new() })
     }
 
-    /// Re-reads the readers without PIN. New cards enter closed, removed cards leave
-    /// (their session is dropped), present cards keep their session.
+    /// Re-reads the readers of every library without PIN. New cards enter closed, removed
+    /// cards leave (their session is dropped), present cards keep their session. A card
+    /// read by two libraries is taken from the first one, in `library_paths` order.
     pub fn refresh(&mut self) -> Result<(), String> {
-        let mut seen = HashMap::new();
-        for slot in self.pkcs11.get_slots_with_token().map_err(|e| e.to_string())? {
-            // A card the library cannot read is skipped, as in tessere.py.
-            if let Ok(Some(card)) = self.read(slot) {
-                seen.insert(card.fingerprint.clone(), card);
+        let mut seen: HashMap<String, Card> = HashMap::new();
+        for module in 0..self.modules.len() {
+            for slot in self.modules[module].get_slots_with_token().map_err(|e| e.to_string())? {
+                // A card the library cannot read is skipped, as in tessere.py.
+                if let Ok(Some(card)) = self.read(module, slot) {
+                    seen.entry(card.fingerprint.clone()).or_insert(card);
+                }
             }
         }
         self.cards.retain(|fingerprint, _| seen.contains_key(fingerprint));
         for (fingerprint, card) in seen {
             match self.cards.get_mut(&fingerprint) {
-                Some(known) => known.slot = card.slot,
+                Some(known) if known.module == card.module => known.slot = card.slot,
+                Some(known) => *known = card,
                 None => {
                     self.cards.insert(fingerprint, card);
                 }
@@ -156,7 +184,7 @@ impl Cards {
     /// Refuses when the card signals its last PIN attempt or a locked PIN (PUK needed).
     pub fn pin_request(&self, fingerprint: &str) -> Result<PinRequest, String> {
         let card = self.card(fingerprint)?;
-        let info = self.pkcs11.get_token_info(card.slot).map_err(|e| e.to_string())?;
+        let info = self.modules[card.module].get_token_info(card.slot).map_err(|e| e.to_string())?;
         if info.user_pin_final_try() || info.user_pin_locked() {
             return Err(format!(
                 "the card signals {}: the PIN is not tried",
@@ -183,7 +211,7 @@ impl Cards {
         }
         let card = self.cards.get_mut(fingerprint).unwrap();
         close_card(card);
-        let session = self.pkcs11.open_ro_session(card.slot).map_err(|e| e.to_string())?;
+        let session = self.modules[card.module].open_ro_session(card.slot).map_err(|e| e.to_string())?;
         session
             .login(UserType::User, Some(&AuthPin::from(pin)))
             .map_err(|e| format!("PIN not accepted ({e})"))?;
@@ -226,9 +254,10 @@ impl Cards {
         self.cards.get(fingerprint).ok_or_else(|| unknown(fingerprint))
     }
 
-    /// The signing certificate (keyUsage nonRepudiation) of the card in `slot`, without PIN.
-    fn read(&self, slot: Slot) -> Result<Option<Card>, String> {
-        let session = self.pkcs11.open_ro_session(slot).map_err(|e| e.to_string())?;
+    /// The signing certificate (keyUsage nonRepudiation) of the card in `slot` of library
+    /// `module`, without PIN.
+    fn read(&self, module: usize, slot: Slot) -> Result<Option<Card>, String> {
+        let session = self.modules[module].open_ro_session(slot).map_err(|e| e.to_string())?;
         let objects = session
             .find_objects(&[Attribute::Class(ObjectClass::CERTIFICATE)])
             .map_err(|e| e.to_string())?;
@@ -244,7 +273,7 @@ impl Cards {
                     _ => {}
                 }
             }
-            if let Some(card) = signing_card(slot, der, ckid)? {
+            if let Some(card) = signing_card(module, slot, der, ckid)? {
                 return Ok(Some(card));
             }
         }
@@ -252,7 +281,15 @@ impl Cards {
     }
 }
 
-fn signing_card(slot: Slot, der: Vec<u8>, ckid: Vec<u8>) -> Result<Option<Card>, String> {
+fn load_module(library: &str) -> Result<Pkcs11, String> {
+    let pkcs11 = Pkcs11::new(library).map_err(|e| format!("{library}: {e}"))?;
+    pkcs11
+        .initialize(CInitializeArgs::new(CInitializeFlags::OS_LOCKING_OK))
+        .map_err(|e| format!("{library}: {e}"))?;
+    Ok(pkcs11)
+}
+
+fn signing_card(module: usize, slot: Slot, der: Vec<u8>, ckid: Vec<u8>) -> Result<Option<Card>, String> {
     let (_, certificate) = X509Certificate::from_der(&der).map_err(|e| e.to_string())?;
     let non_repudiation = certificate
         .key_usage()
@@ -274,6 +311,7 @@ fn signing_card(slot: Slot, der: Vec<u8>, ckid: Vec<u8>) -> Result<Option<Card>,
         valid_until: certificate.validity().not_after.to_datetime().date().to_string(),
         der,
         ckid,
+        module,
         slot,
         session: None,
         open_until: None,

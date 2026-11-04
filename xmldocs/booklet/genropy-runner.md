@@ -86,12 +86,12 @@ The menu **Instance → Change URL…** (`Cmd/Ctrl+Shift+U`) reopens the setup w
 ```json
 {
   "url": "https://example.com/app",
-  "pkcs11_library": "/Library/bit4id/pkcs11/libbit4xpki.dylib",
+  "pkcs11_libraries": ["/Library/bit4id/pkcs11/libbit4xpki.dylib"],
   "session_minutes": 240
 }
 ```
 
-`pkcs11_library` and `session_minutes` are optional. Without `pkcs11_library` the runner looks for the bit4id library in its default locations.
+`pkcs11_libraries` and `session_minutes` are optional. The runner loads every PKCS#11 library that exists among `pkcs11_libraries` and its default locations (bit4id, Athena for Actalis cards, OpenSC), and lists the cards of all of them. A card read by two libraries is taken from the first one.
 
 #### 4. Sign from the GenroPy page
 

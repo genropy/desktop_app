@@ -75,11 +75,11 @@ cargo build
     <code lang="json" file="config.json"><![CDATA[
 {
   "url": "https://example.com/app",
-  "pkcs11_library": "/Library/bit4id/pkcs11/libbit4xpki.dylib",
+  "pkcs11_libraries": ["/Library/bit4id/pkcs11/libbit4xpki.dylib"],
   "session_minutes": 240
 }
 ]]></code>
-    <p><c>pkcs11_library</c> and <c>session_minutes</c> are optional. Without <c>pkcs11_library</c> the runner looks for the bit4id library in its default locations.</p>
+    <p><c>pkcs11_libraries</c> and <c>session_minutes</c> are optional. The runner loads every PKCS#11 library that exists among <c>pkcs11_libraries</c> and its default locations (bit4id, Athena for Actalis cards, OpenSC), and lists the cards of all of them. A card read by two libraries is taken from the first one.</p>
   </step>
 
   <step id="s-sign" title="Sign from the GenroPy page">

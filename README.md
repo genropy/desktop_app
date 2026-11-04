@@ -59,11 +59,14 @@ await invoke('card_close', {card: cards[0].fingerprint});
 Optional keys in `config.json`:
 
 ```json
-{ "url": "https://example.com/app", "pkcs11_library": "/path/to/libbit4xpki.dylib", "session_minutes": 240 }
+{ "url": "https://example.com/app", "pkcs11_libraries": ["/path/to/libpkcs11.dylib"], "session_minutes": 240 }
 ```
 
-Default library: `/Library/bit4id/pkcs11/libbit4xpki.dylib` on macOS, `bit4xpki.dll` of UKC or
-Firma4NG under `C:\Program Files (x86)\Bit4id` on Windows. Firma4NG ships that DLL at 32 bit only,
+The runner loads every PKCS#11 library that exists among `pkcs11_libraries` and the default
+locations, and lists the cards of all of them. A card read by two libraries is taken from the first.
+Default locations on macOS: bit4id `/Library/bit4id/pkcs11/libbit4xpki.dylib`, Athena (Actalis cards)
+`/Library/Application Support/Athena/libASEP11.dylib`, OpenSC `/Library/OpenSC/lib/opensc-pkcs11.so`.
+On Windows: `bit4xpki.dll` of UKC or Firma4NG under `C:\Program Files (x86)\Bit4id`. Firma4NG ships that DLL at 32 bit only,
 so the Windows build must target `i686-pc-windows-msvc`:
 
 ```bash

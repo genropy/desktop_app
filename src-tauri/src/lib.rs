@@ -29,9 +29,9 @@ const SESSION_MINUTES: u64 = 240;
 #[derive(Default, Serialize, Deserialize)]
 struct Config {
     url: Option<String>,
-    /// Path of the PKCS#11 library; default: the bit4id locations in `card.rs`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pkcs11_library: Option<String>,
+    /// Paths of PKCS#11 libraries, tried before the default locations in `card.rs`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pkcs11_libraries: Vec<String>,
     /// Lifetime of a card session after the PIN; default 240.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     session_minutes: Option<u64>,
@@ -172,8 +172,8 @@ fn with_cards<T>(app: &AppHandle, action: impl FnOnce(&mut Cards) -> Result<T, S
     let signer = app.state::<Signer>();
     let mut guard = signer.cards.lock().unwrap();
     if guard.is_none() {
-        let library = card::library_path(load_config(app)?.pkcs11_library.as_deref())?;
-        *guard = Some(Cards::load(&library)?);
+        let libraries = card::library_paths(&load_config(app)?.pkcs11_libraries)?;
+        *guard = Some(Cards::load(&libraries)?);
     }
     let cards = guard.as_mut().unwrap();
     cards.refresh()?;
