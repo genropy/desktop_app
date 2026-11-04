@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<!-- generated from guida-firma.xml by xmldocs: do not edit, edit the XML -->
+<html lang="it"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Firmare i documenti con GenroPy Runner</title><style>
+:root {
+  --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8; --panel: #f3f1ec;
+  --code-bg: #f0eee8; --accent: #2f5d8a;
+  --ok: #2e7d4f; --warn: #a86b00; --bad: #b23b3b; --info: #2f5d8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+    --code-bg: #26262a; --accent: #8fb4dc;
+    --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+  --code-bg: #26262a; --accent: #8fb4dc;
+  --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 4px 0 8px; }
+h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1.12rem; margin: 28px 0 8px; }
+h4 { font-size: 1rem; margin: 20px 0 6px; }
+a { color: var(--accent); }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg);
+  padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; overflow-x: auto; }
+pre code { display: block; padding: 12px 14px; background: none; }
+figure { margin: 16px 0; }
+figure.code { background: var(--code-bg); border-radius: 8px; }
+figure.code figcaption { font-size: 0.8rem; color: var(--muted); padding: 8px 14px 0; }
+figure.diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.embed svg { max-width: 100%; height: auto; }
+.tag-script { color: var(--bad); }
+figure.diagram figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.diagram svg { max-width: 100%; height: auto; }
+.diagram-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .diagram-light { display: none; }
+  :root:not([data-theme="light"]) .diagram-dark { display: block; }
+}
+:root[data-theme="dark"] .diagram-light { display: none; }
+:root[data-theme="dark"] .diagram-dark { display: block; }
+.doc-type { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--muted); }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 0.9rem; }
+.muted { color: var(--muted); font-size: 0.9em; }
+.box { border: 1px solid var(--line); border-left: 4px solid var(--line); background: var(--panel);
+  border-radius: 6px; padding: 10px 14px; margin: 12px 0; }
+.box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.box-foot { margin-top: 6px; }
+.box.fact { border-left-color: var(--info); }
+.box.rule-must { border-left-color: var(--ok); }
+.box.rule-must-not { border-left-color: var(--bad); }
+.box.rule-should { border-left-color: var(--warn); }
+.box.limit { border-left-color: var(--warn); }
+.box.decision-open, .box.decision-proposed { border-left-color: var(--warn); }
+.box.decision-decided { border-left-color: var(--ok); }
+.box.decision-rejected { border-left-color: var(--bad); }
+.box.example { border-left-color: var(--accent); }
+.box.done { border-left-color: var(--ok); }
+.tag-done { color: var(--ok); }
+.tag-doing, .tag-in-progress { color: var(--info); }
+.tag-todo { color: var(--muted); }
+.tag-approved { color: var(--ok); }
+.source { font-size: 0.8rem; }
+.why { margin-top: 4px; }
+.tag { display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; color: var(--muted); }
+.tag-test, .tag-run, .tag-must, .tag-decided, .tag-accepted { color: var(--ok); }
+.tag-read, .tag-review { color: var(--info); }
+.tag-should, .tag-open, .tag-proposed, .tag-draft { color: var(--warn); }
+.tag-must-not, .tag-rejected { color: var(--bad); }
+.options li { margin: 6px 0; }
+.options li.chosen b { color: var(--ok); }
+.choice { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.step-num { color: var(--muted); font-weight: 400; margin-right: 6px; }
+.table-wrap { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+caption { text-align: left; color: var(--muted); padding-bottom: 6px; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+  </style></head><body><main><header class="doc-head"><div class="doc-type">Instruction booklet</div><h1>Firmare i documenti con GenroPy Runner</h1><div class="doc-meta"><span>booklet/guida-firma</span><span>2026-11-04</span><span>Giovanni Porcari</span></div></header><section class="part purpose"><h2>Purpose</h2>
+    <p>Questa guida spiega come firmare digitalmente i documenti del gestionale dal proprio Mac, con la tessera o la chiavetta di firma.</p>
+    <p>Il documento resta sempre sul server. Sul Mac arriva solo un codice di controllo del documento: la tessera lo firma e la firma torna al server, che la applica al PDF. Il PIN non esce mai dal Mac.</p>
+  </section><section class="part requires"><h2>Requirements</h2>
+    <ul>
+      <li>L'app <b>GenroPy Runner</b> installata sul Mac.</li>
+      <li>La tessera di firma digitale con il suo lettore USB, oppure la chiavetta USB di firma.</li>
+      <li>Il programma del fornitore della tessera installato sul Mac, per esempio bit4id per le tessere InfoCamere, Aruba e Actalis.</li>
+      <li>Il PIN della tessera.</li>
+      <li>L'indirizzo del gestionale, che fornisce l'amministratore.</li>
+    </ul>
+  </section><section class="part steps"><h2>Steps</h2><section class="section step" id="s-apri"><h3><span class="step-num">1.</span>Aprire l'app</h3>
+    <ol>
+      <li>Apri <b>GenroPy Runner</b> con un doppio clic.</li>
+      <li>La prima volta l'app chiede l'indirizzo del gestionale. Scrivilo e conferma: dalla volta successiva l'app si apre direttamente sul gestionale.</li>
+      <li>Entra con il tuo utente e la tua password, come nel browser.</li>
+    </ol>
+    <p>La finestra non ha barra degli indirizzi né schede: è il gestionale e basta. Il menu <b>Instance → Reload</b> ricarica la pagina; <b>Instance → Change URL…</b> cambia l'indirizzo.</p>
+  </section><section class="section step" id="s-tessera"><h3><span class="step-num">2.</span>Inserire la tessera</h3>
+    <p>Inserisci la tessera nel lettore, o la chiavetta in una porta USB, prima di firmare. L'app riconosce la tessera dal suo certificato: non importa quale lettore usi.</p>
+  </section><section class="section step" id="s-firma"><h3><span class="step-num">3.</span>Firmare</h3>
+    <ol>
+      <li>Apri l'elenco dei documenti da firmare.</li>
+      <li>Apri il PDF e controlla che sia quello giusto.</li>
+      <li>Seleziona uno o più documenti e premi il pulsante di firma.</li>
+      <li>Se più tessere sono inserite, scegli la tua.</li>
+      <li>Si apre la finestra del PIN, con il nome del titolare della tessera. Scrivi il PIN e premi <b>Sign</b>.</li>
+      <li>I documenti risultano firmati. Da qui possono partire per mail, PEC o posta.</li>
+    </ol>
+    <p><b>La finestra del PIN è dell'app, non del gestionale.</b> Il PIN non passa mai dalla pagina né dalla rete.</p>
+  </section><section class="section step" id="s-sessione"><h3><span class="step-num">4.</span>Un PIN per molte firme</h3>
+    <p>Dopo il PIN la tessera resta aperta per alcune ore, di solito 4. In quel tempo le firme successive non chiedono di nuovo il PIN.</p>
+    <p>Per chiudere la tessera prima, estraila dal lettore o chiudi l'app. Alla firma successiva l'app chiede di nuovo il PIN.</p>
+  </section><section class="section step" id="s-problemi"><h3><span class="step-num">5.</span>Se qualcosa non va</h3>
+    <div class="table-wrap"><table><caption>Problemi e rimedi</caption>
+      <tr><th>Cosa succede</th><th>Cosa fare</th></tr>
+      <tr><td>L'app non vede la tessera dopo che il Mac è andato in stop, o dopo aver collegato il lettore ad app già aperta</td><td>Chiudi e riapri l'app.</td></tr>
+      <tr><td>Il PIN viene rifiutato</td><td>Riprova con attenzione: ogni errore consuma un tentativo.</td></tr>
+      <tr><td>L'app dice che la tessera segnala l'ultimo tentativo o il PIN bloccato</td><td>L'app non prova il PIN, per non bloccare la tessera. Rivolgiti all'amministratore: serve il PUK del fornitore.</td></tr>
+      <tr><td>L'app dice che il PIN ha una lunghezza sbagliata</td><td>Il PIN non è stato provato e nessun tentativo è perso. Ricontrolla il PIN.</td></tr>
+      <tr><td>La pagina non risponde</td><td>Usa <b>Instance → Reload</b>.</td></tr>
+    </table></div>
+  </section></section><section class="part rules"><h2>Rules</h2>
+    <div class="box rule rule-must-not"><div class="box-head"><span class="tag tag-must-not">must-not</span></div><div>Scrivere il PIN in una pagina del gestionale o del browser. Il PIN si scrive solo nella finestra dell'app.</div><div class="muted why">Il gestionale non chiede mai il PIN.</div></div>
+    <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>Estrarre la tessera, o chiudere l'app, quando ci si allontana dal Mac.</div><div class="muted why">Con la tessera aperta le firme non chiedono il PIN.</div></div>
+    <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>Controllare il documento prima di firmarlo.</div><div class="muted why">La firma vale come la firma autografa.</div></div>
+  </section><section class="part limits"><h2>Current limits</h2>
+    <div class="box limit"><div>Bozza: descrive il funzionamento previsto. Il pulsante di firma nelle pagine del gestionale è da realizzare.</div></div>
+    <div class="box limit"><div>La firma funziona solo dentro l'app. Dal browser (Safari, Chrome) la firma diretta non è disponibile.</div></div>
+    <div class="box limit"><div>La finestra del PIN e i menu dell'app sono in inglese.</div></div>
+  </section><section class="part related"><h2>Related documents</h2><ul>
+    <li><a href="../proposal/signing-flow.html">proposal/signing-flow</a><span class="tag">proposal</span> — Signing server PDFs with the GenroPy Runner</li>
+  </ul></section></main></body></html>

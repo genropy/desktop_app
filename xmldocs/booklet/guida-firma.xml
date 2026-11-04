@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<booklet id="booklet/guida-firma" title="Firmare i documenti con GenroPy Runner" date="2026-11-04" lang="it" author="Giovanni Porcari">
+  <purpose>
+    <p>Questa guida spiega come firmare digitalmente i documenti del gestionale dal proprio Mac, con la tessera o la chiavetta di firma.</p>
+    <p>Il documento resta sempre sul server. Sul Mac arriva solo un codice di controllo del documento: la tessera lo firma e la firma torna al server, che la applica al PDF. Il PIN non esce mai dal Mac.</p>
+  </purpose>
+
+  <requires>
+    <list>
+      <item>L'app <b>GenroPy Runner</b> installata sul Mac.</item>
+      <item>La tessera di firma digitale con il suo lettore USB, oppure la chiavetta USB di firma.</item>
+      <item>Il programma del fornitore della tessera installato sul Mac, per esempio bit4id per le tessere InfoCamere, Aruba e Actalis.</item>
+      <item>Il PIN della tessera.</item>
+      <item>L'indirizzo del gestionale, che fornisce l'amministratore.</item>
+    </list>
+  </requires>
+
+  <step id="s-apri" title="Aprire l'app">
+    <list ordered="true">
+      <item>Apri <b>GenroPy Runner</b> con un doppio clic.</item>
+      <item>La prima volta l'app chiede l'indirizzo del gestionale. Scrivilo e conferma: dalla volta successiva l'app si apre direttamente sul gestionale.</item>
+      <item>Entra con il tuo utente e la tua password, come nel browser.</item>
+    </list>
+    <p>La finestra non ha barra degli indirizzi né schede: è il gestionale e basta. Il menu <b>Instance → Reload</b> ricarica la pagina; <b>Instance → Change URL…</b> cambia l'indirizzo.</p>
+  </step>
+
+  <step id="s-tessera" title="Inserire la tessera">
+    <p>Inserisci la tessera nel lettore, o la chiavetta in una porta USB, prima di firmare. L'app riconosce la tessera dal suo certificato: non importa quale lettore usi.</p>
+  </step>
+
+  <step id="s-firma" title="Firmare">
+    <list ordered="true">
+      <item>Apri l'elenco dei documenti da firmare.</item>
+      <item>Apri il PDF e controlla che sia quello giusto.</item>
+      <item>Seleziona uno o più documenti e premi il pulsante di firma.</item>
+      <item>Se più tessere sono inserite, scegli la tua.</item>
+      <item>Si apre la finestra del PIN, con il nome del titolare della tessera. Scrivi il PIN e premi <b>Sign</b>.</item>
+      <item>I documenti risultano firmati. Da qui possono partire per mail, PEC o posta.</item>
+    </list>
+    <p><b>La finestra del PIN è dell'app, non del gestionale.</b> Il PIN non passa mai dalla pagina né dalla rete.</p>
+  </step>
+
+  <step id="s-sessione" title="Un PIN per molte firme">
+    <p>Dopo il PIN la tessera resta aperta per alcune ore, di solito 4. In quel tempo le firme successive non chiedono di nuovo il PIN.</p>
+    <p>Per chiudere la tessera prima, estraila dal lettore o chiudi l'app. Alla firma successiva l'app chiede di nuovo il PIN.</p>
+  </step>
+
+  <step id="s-problemi" title="Se qualcosa non va">
+    <table title="Problemi e rimedi">
+      <row head="true"><cell>Cosa succede</cell><cell>Cosa fare</cell></row>
+      <row><cell>L'app non vede la tessera dopo che il Mac è andato in stop, o dopo aver collegato il lettore ad app già aperta</cell><cell>Chiudi e riapri l'app.</cell></row>
+      <row><cell>Il PIN viene rifiutato</cell><cell>Riprova con attenzione: ogni errore consuma un tentativo.</cell></row>
+      <row><cell>L'app dice che la tessera segnala l'ultimo tentativo o il PIN bloccato</cell><cell>L'app non prova il PIN, per non bloccare la tessera. Rivolgiti all'amministratore: serve il PUK del fornitore.</cell></row>
+      <row><cell>L'app dice che il PIN ha una lunghezza sbagliata</cell><cell>Il PIN non è stato provato e nessun tentativo è perso. Ricontrolla il PIN.</cell></row>
+      <row><cell>La pagina non risponde</cell><cell>Usa <b>Instance → Reload</b>.</cell></row>
+    </table>
+  </step>
+
+  <rules>
+    <rule level="must-not" why="Il gestionale non chiede mai il PIN.">Scrivere il PIN in una pagina del gestionale o del browser. Il PIN si scrive solo nella finestra dell'app.</rule>
+    <rule level="must" why="Con la tessera aperta le firme non chiedono il PIN.">Estrarre la tessera, o chiudere l'app, quando ci si allontana dal Mac.</rule>
+    <rule level="must" why="La firma vale come la firma autografa.">Controllare il documento prima di firmarlo.</rule>
+  </rules>
+
+  <limits>
+    <limit>Bozza: descrive il funzionamento previsto. Il pulsante di firma nelle pagine del gestionale è da realizzare.</limit>
+    <limit>La firma funziona solo dentro l'app. Dal browser (Safari, Chrome) la firma diretta non è disponibile.</limit>
+    <limit>La finestra del PIN e i menu dell'app sono in inglese.</limit>
+  </limits>
+
+  <related>
+    <doc id="proposal/signing-flow" type="proposal">Signing server PDFs with the GenroPy Runner</doc>
+  </related>
+</booklet>
