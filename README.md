@@ -82,3 +82,7 @@ cargo tauri build                   # .app / .dmg on macOS, .msi / .exe on Windo
 ```
 
 The window size and position are saved by `tauri-plugin-window-state`.
+
+## License
+
+Apache License 2.0, see `LICENSE`.
