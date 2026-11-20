@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "manage",
-  "description": "The local window Gestione: saved sites, a local test of the device key and the signature cards.",
+  "description": "The local window Gestione: saved sites, and a local test of the device key.",
   "windows": ["manage"],
   "permissions": [
     "core:default",
@@ -10,9 +10,6 @@
     "allow-manage-set-primary",
     "allow-manage-forget",
     "allow-manage-remove",
-    "allow-manage-test-key",
-    "allow-card-list",
-    "allow-card-test",
-    "allow-card-close"
+    "allow-manage-test-key"
   ]
 }
