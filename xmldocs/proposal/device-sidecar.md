@@ -23,8 +23,8 @@ The cases are hundreds: every customer has its own machines, scales, readers and
 - **Mobile**: Android and iOS apps are built with Capacitor.
 
 - `READ` `sidecar/main.py:21 (commit 3e3f520)` · 2026-11-20 — The sidecar imports its modules with `import modules` at start. The modules are `system` and `inbox`, in `sidecar/modules/`.
-- `READ` `src-tauri/src/sidecar.rs:30-41 (commit 3e3f520)` · 2026-11-20 — A release build runs the PyInstaller executable `genropy-sidecar` placed next to the shell executable: the modules are frozen inside it at build time.
-- `READ` `macos/build-developer-id.sh (commit 18a5bb9)` · 2026-11-20 — The distributed macOS build passes `--no-default-features`: it has neither the sidecar nor the card commands.
+- `READ` `src-tauri/src/sidecar.rs:46-59 (commit 79b0481)` · 2026-11-20 — A release build runs the PyInstaller executable `genropy-sidecar` placed next to the shell executable: the built-in modules are frozen inside it at build time.
+- `READ` `macos/build-developer-id.sh:21 (commit 29cb987)` · 2026-11-20 — The distributed macOS build passes `--no-default-features --features cards`: it has the card commands and not the sidecar. The Cargo feature `sidecar` holds the sidecar, `device_call` and the downloaded modules.
 
 ### Proposed solution
 
@@ -137,6 +137,36 @@ A module for one customer is not frozen in the app. It is a package downloaded o
 - Third-party libraries of a module travel in its package. The frozen sidecar holds only the standard library and the libraries of the built-in modules.
 
 The window Gestione of GenroApp lists the installed modules with version and origins, and removes one.
+
+#### Implemented in GenroApp
+
+Pull request genropy/desktop\_app#3, commit `79b0481`, built with the Cargo feature `sidecar`. The manifest is the payload of a `{payload, signature}` envelope, the same envelope as the RunDoc:
+
+```json
+{"format": "it.softwell.genroapp.module/v1", "name": "scale", "version": "1.2.0",
+ "origins": ["https://app.acme.com"],
+ "files": {"scale/__init__.py": "<sha256 hex>", "serial/__init__.py": "<sha256 hex>"}}
+```
+
+*Addresses a saved site serves*
+
+| Request | Answer |
+|---|---|
+| `GET /_tools/modules` | JSON array of the signed manifests of the site, at most 1 MiB. `404` = no modules. |
+| `GET /_tools/modules/<name>/<version>/<path>` | The bytes of one file of the package, at most 64 MiB. |
+
+- `TEST` `src-tauri/src/modules.rs:94-121 (commit 79b0481)` · 2026-11-20 — A manifest is accepted only with a valid Softwell signature, a lowercase Python name other than `system` and `inbox`, file paths without `..`, absolute parts or `manifest.json`, SHA-256 hashes in hex and HTTPS origins with no path.
+- `READ` `src-tauri/src/modules.rs:293-323 (commit 79b0481)` · 2026-11-20 — GenroApp refuses a module whose manifest does not list the origin of the site that offers it, and does not download again a name and version already installed.
+- `TEST` `src-tauri/src/modules.rs:134-169 (commit 79b0481)` · 2026-11-20 — A package is written to `<app config dir>/modules/<name>/<version>/`, with the envelope as `manifest.json`, only when every file matches its hash. A new version removes the older ones.
+- `TEST` `src-tauri/src/modules.rs:195-217 (commit 79b0481)` · 2026-11-20 — At every start of the sidecar the signature and the hashes are checked again. A folder with a changed file or a file outside the manifest is not loaded.
+- `TEST` `src-tauri/src/modules.rs:253-260, src-tauri/src/sidecar.rs:207 (commit 79b0481)` · 2026-11-20 — `device_call` refuses a downloaded module to a page whose origin is not in its manifest. The built-in modules answer every origin that received `device_call`.
+- `TEST` `sidecar/main.py:73-97 (commit 79b0481)` · 2026-11-20 — The sidecar receives `--module <name> <folder>` for each verified folder, appends the folder to `sys.path` and imports the package after its own modules. It drops a package that registers another name, a name already registered, or that is imported from outside its folder, such as a name of the standard library.
+- `TEST` `sidecar/main.py:111 (commit 79b0481)` · 2026-11-20 — The sidecar writes no bytecode, so a module folder keeps matching its hashes.
+- `READ` `src-tauri/src/documents.rs:76, src-tauri/src/modules.rs:346-394 (commit 79b0481)` · 2026-11-20 — GenroApp downloads the modules of a saved site in the background when its window opens. The window Gestione lists the installed modules, downloads them from every saved site with "Aggiorna moduli" and removes one. Each install or removal restarts the sidecar.
+- `TEST` `scripts/sign-module.py (commit 79b0481)` · 2026-11-20 — `scripts/sign-module.py` builds `<output>/<name>/<version>/` with the files and the signed `manifest.json`, skipping `__pycache__` and `.pyc`.
+- GenroPy does not serve `/_tools/modules` yet. GenroApp has not been run against a site that serves a real package.
+- Two sites that offer the same module name in different versions replace each other's version at every opening. Softwell assigns the names.
+- A module the site stops offering stays installed until the user removes it in Gestione.
 
 #### Built-in devices and downloaded modules
 
