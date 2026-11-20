@@ -26,7 +26,8 @@
     "fileAssociations": [
       {
         "ext": [
-          "softwell", "rundoc"
+          "softwell",
+          "rundoc"
         ],
         "name": "Collegamento SoftWell",
         "role": "Viewer",
@@ -42,6 +43,14 @@
     ],
     "resources": {
       "icons/softwell-link.icns": "softwell-link.icns"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEIxQThGNUMwQkZGOTA3MkEKUldRcUIvbS93UFdvc2QvN1d2akR2OUVMZmZUQ1o1T25BeFRBQVZkZjlRTC9aNVgxR0N1by9JMU4K",
+      "endpoints": [
+        "https://genroapp-downloads.fsn1.your-objectstorage.com/latest.json"
+      ]
     }
   }
 }

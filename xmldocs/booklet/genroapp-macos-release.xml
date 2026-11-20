@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<booklet id="booklet/genroapp-macos-release" title="Release GenroApp for macOS: build, sign, notarize, publish" date="2026-11-20" lang="en" author="Giovanni Porcari">
+  <purpose>
+    <p>Produce a GenroApp build for macOS that another Mac opens without a Gatekeeper refusal: a universal app signed with the Developer ID certificate of team <c>HXS58UUB2N</c>, notarized by Apple, with the ticket stapled, published as a disk image and as an update for the installed apps.</p>
+    <p>The distributed build is the site runner only. It is compiled without the Cargo feature <c>devices</c>: no Python sidecar, no card signing, no PIN window.</p>
+  </purpose>
+  <requires>
+    <list>
+      <item>Rust with the targets <c>aarch64-apple-darwin</c> and <c>x86_64-apple-darwin</c>, Tauri CLI 2, Xcode command line tools.</item>
+      <item>The certificate <c>Developer ID Application</c> of team <c>HXS58UUB2N</c>, with its private key, in the keychain.</item>
+      <item>The notarytool keychain profile <c>gp-notary-tool</c> of team <c>HXS58UUB2N</c>. It is created once per Mac with <c>xcrun notarytool store-credentials gp-notary-tool --team-id HXS58UUB2N</c>.</item>
+      <item>The private key of the updater in <c>~/.tauri/genroapp-updater.key</c>, with no password. It is kept in 1Password, vault "Comuni Softwell", document "GenroApp updater key". Its public key is in <c>src-tauri/tauri.conf.json</c>, <c>plugins.updater.pubkey</c>.</item>
+      <item>The public key that signs connection files, base64, in <c>~/.tauri/genroapp-link.pub.b64</c>. It is kept in 1Password, vault "Comuni Softwell", document "GenroApp connection signing key (Ed25519)".</item>
+      <item>The AWS CLI and the 1Password CLI <c>op</c>, signed in, with access to the item <c>s3-meetlot</c> of the vault <c>gpkube</c>.</item>
+    </list>
+  </requires>
+  <step id="s-version" title="Raise the version">
+    <p>Set the new version in <c>src-tauri/tauri.conf.json</c> and <c>src-tauri/Cargo.toml</c>. Installed apps see an update only when the version in <c>latest.json</c> is higher than theirs.</p>
+  </step>
+  <step id="s-build" title="Build and sign">
+    <code lang="bash"><![CDATA[
+macos/build-developer-id.sh
+]]></code>
+    <p>The script builds <c>GenroApp.app</c> for <c>universal-apple-darwin</c> with <c>--no-default-features</c>. It reads <c>SOFTWELL_LINK_PUBLIC_KEY</c> from the environment, or from <c>~/.tauri/genroapp-link.pub.b64</c> when the variable is not set. A build without this key rejects every connection file.</p>
+    <p>The app is signed with the hardened runtime, a secure timestamp and two entitlements: <c>com.apple.security.device.camera</c> and <c>com.apple.security.device.audio-input</c>. The Meetlot windows of the menus Meetlot and Assistenza use them. No provisioning profile is embedded.</p>
+    <p>The app is at <c>src-tauri/target/universal-apple-darwin/release/bundle/macos/GenroApp.app</c>.</p>
+  </step>
+  <step id="s-release" title="Release: notarize, disk image, updater archive">
+    <code lang="bash"><![CDATA[
+GENROAPP_RELEASE_NOTES="What changed in this version" macos/release.sh
+]]></code>
+    <p>The script notarizes and staples the app. It builds <c>GenroApp-VERSION.dmg</c> with the app and a link to <c>/Applications</c>, then signs, notarizes and staples the disk image. It packs the stapled app in <c>GenroApp-VERSION.app.tar.gz</c>, signs that archive with the updater key and writes <c>latest.json</c>. The three files are in <c>dist/release/</c>.</p>
+    <p><c>GENROAPP_NOTARY_PROFILE</c> and <c>GENROAPP_UPDATER_KEY</c> replace the default profile and key file.</p>
+    <p>On a notarization answer <c>Invalid</c>, read the reasons with the submission id:</p>
+    <code lang="bash"><![CDATA[
+xcrun notarytool log SUBMISSION_ID --keychain-profile gp-notary-tool
+]]></code>
+  </step>
+  <step id="s-publish" title="Publish">
+    <code lang="bash"><![CDATA[
+macos/publish.sh
+]]></code>
+    <p>The script uploads to the bucket <c>genroapp-downloads</c> of the Hetzner Object Storage (endpoint <c>https://fsn1.your-objectstorage.com</c>). <c>op run</c> passes the keys of the 1Password item <c>s3-meetlot</c> to <c>aws s3 cp</c>; they are never printed.</p>
+    <table title="Published objects">
+      <row head="true"><cell>Object</cell><cell>Content</cell><cell>Cache-Control</cell></row>
+      <row><cell><c>GenroApp-VERSION.app.tar.gz</c></cell><cell>the archive the updater installs</cell><cell><c>immutable</c></cell></row>
+      <row><cell><c>GenroApp-VERSION.dmg</c></cell><cell>the disk image of that version</cell><cell><c>immutable</c></cell></row>
+      <row><cell><c>GenroApp.dmg</c></cell><cell>the disk image of the latest version: the fixed download link</cell><cell><c>no-cache</c></cell></row>
+      <row><cell><c>latest.json</c></cell><cell>the manifest the installed apps read</cell><cell><c>no-cache</c></cell></row>
+    </table>
+    <p>The public address of an object is <c>https://genroapp-downloads.fsn1.your-objectstorage.com/OBJECT</c>. The listing of the bucket answers 403. <c>latest.json</c> goes last: an installed app never reads a manifest whose archive is not there yet.</p>
+  </step>
+  <step id="s-update" title="How an installed app updates">
+    <p>A release build reads <c>latest.json</c> at start and every hour. A higher version puts the badge "1" on the Dock icon and the item "Aggiorna a VERSION e riavvia" in the GenroApp menu, under "Informazioni su GenroApp". The item downloads the archive, verifies its signature with the public key in <c>tauri.conf.json</c>, replaces the app and restarts it. A debug build never checks.</p>
+  </step>
+  <step id="s-verify" title="Verify">
+    <code lang="bash"><![CDATA[
+APP=src-tauri/target/universal-apple-darwin/release/bundle/macos/GenroApp.app
+xcrun stapler validate "$APP"
+spctl -a -t exec -vv "$APP"
+codesign -dv --verbose=4 "$APP" 2>&1 | grep -E 'CDHash=|Notarization'
+curl -fsS https://genroapp-downloads.fsn1.your-objectstorage.com/latest.json
+]]></code>
+    <table title="Expected output">
+      <row head="true"><cell>Command</cell><cell>Notarized build</cell></row>
+      <row><cell><c>stapler validate</c></cell><cell><c>The validate action worked!</c></cell></row>
+      <row><cell><c>spctl -a -t exec -vv</c></cell><cell><c>accepted</c>, <c>source=Notarized Developer ID</c></cell></row>
+      <row><cell><c>codesign -dv</c></cell><cell><c>Notarization Ticket=stapled</c></cell></row>
+      <row><cell><c>curl latest.json</c></cell><cell>the new version and the URL of its archive</cell></row>
+    </table>
+  </step>
+  <rules>
+    <rule level="must" why="The ticket is bound to the CDHash of one build; a rebuild has another CDHash.">Notarize and staple every new build.</rule>
+    <rule level="must" why="Under the hardened runtime macOS denies the camera and the microphone to an app without these entitlements, and shows no permission prompt.">Keep <c>com.apple.security.device.camera</c> and <c>com.apple.security.device.audio-input</c> in the signed entitlements.</rule>
+    <rule level="must" why="The release bundle carries no sidecar executable; with the feature on, the app stops at start when it cannot launch the sidecar.">Build the distributed app with <c>--no-default-features</c>.</rule>
+    <rule level="must-not" why="Whoever holds it can publish an update that every installed app accepts.">Write the private key of the updater in a file of this repository.</rule>
+    <rule level="must" why="The installed apps accept only archives signed with the key whose public half they carry; without it they cannot be updated, only reinstalled.">Keep the private key of the updater in 1Password, vault "Comuni Softwell".</rule>
+    <rule level="must-not" why="An installed app could read a new latest.json together with an old cached archive, and refuse its signature.">Reuse the name of a published archive for another build.</rule>
+  </rules>
+  <limits>
+    <limit>The build is for macOS only.</limit>
+    <limit>The Associated Domains entitlement for passkeys (<c>src-tauri/AssociatedDomains.plist</c>, <c>src-tauri/tauri.passkeys.json</c>) is not in the distributed build: it needs a Developer ID provisioning profile for <c>it.softwell.genropy.runner</c>.</limit>
+    <limit>Old versions stay in the bucket until they are deleted by hand.</limit>
+  </limits>
+  <facts>
+    <fact source="notarytool submit, submission 025519c1-ee07-4f4e-81b8-03690c728a31" method="run" verified="2026-11-20">Apple accepted GenroApp 0.1.0, CDHash <c>9024c8bf811b3afd58dcbe3e8e2725a0b7749d7b</c>; after stapling, <c>spctl</c> answers <c>accepted</c>, <c>source=Notarized Developer ID</c>.</fact>
+    <fact source="notarytool submit, submission 9a1d9df5-7872-4551-8e8b-d29073e980f5" method="run" verified="2026-11-20">Apple accepted the disk image <c>GenroApp-0.1.0.dmg</c>; <c>spctl -t open</c> answers <c>accepted</c>, <c>source=Notarized Developer ID</c>.</fact>
+    <fact source="lipo -archs" method="run" verified="2026-11-20">The executable <c>genropy-runner</c> of the build holds <c>x86_64 arm64</c>.</fact>
+    <fact source="macos/publish.sh, curl, shasum" method="run" verified="2026-11-20">After publishing, <c>latest.json</c>, <c>GenroApp.dmg</c> and <c>GenroApp-0.1.0.app.tar.gz</c> downloaded over HTTPS have the same SHA-256 as the files in <c>dist/release/</c>; the bucket root answers 403.</fact>
+  </facts>
+  <related>
+    <doc id="booklet/genropy-runner" type="booklet">GenroApp: a desktop window with card signing</doc>
+  </related>
+</booklet>

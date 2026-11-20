@@ -1,0 +1,35 @@
+:root {
+  color-scheme: light dark;
+  --background: #f6f4ef;
+  --text: #1f2a27;
+  --muted: #5f6b67;
+  --brand: #153b60;
+  --tile: #ffffff;
+  --tile-border: #e4e0d6;
+  font: 14px -apple-system, system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #171c1b;
+    --text: #eef1ef;
+    --muted: #a3ada9;
+    --brand: #8fb4d9;
+    --tile: #f6f4ef;
+    --tile-border: #2c3432;
+  }
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--background); color: var(--text); -webkit-user-select: none; user-select: none; cursor: default; }
+main { box-sizing: border-box; height: 100%; padding: 28px 32px 20px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+header { display: flex; flex-direction: column; align-items: center; }
+.app-icon { width: 96px; height: 96px; }
+h1 { margin: 10px 0 2px; font-size: 24px; font-weight: 700; letter-spacing: .01em; }
+.version { margin: 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tagline { margin: 10px 0 0; color: var(--brand); font-weight: 600; }
+section { width: 100%; margin-top: 26px; }
+h2 { margin: 0 0 12px; font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.projects { list-style: none; margin: 0 auto; padding: 0; display: flex; justify-content: center; gap: 8px; }
+.projects li { height: 40px; display: flex; align-items: center; gap: 6px; padding: 5px 10px; box-sizing: border-box; background: var(--tile); border: 1px solid var(--tile-border); border-radius: 8px; color: #153b60; font-weight: 600; }
+.projects img { height: 26px; width: auto; }
+footer { margin-top: auto; color: var(--muted); font-size: 12px; }
+footer p { margin: 2px 0; }

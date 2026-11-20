@@ -64,7 +64,8 @@ pub fn open(app: &AppHandle, doc: Document) -> tauri::Result<()> {
     if app.get_webview_window(&label).is_some() {
         return focus(app, &label);
     }
-    super::grant_card_commands(app, &url, &label)?;
+    #[cfg(feature = "devices")]
+    super::devices::grant_card_commands(app, &url, &label)?;
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title(&doc.name)
         .inner_size(1280.0, 800.0)

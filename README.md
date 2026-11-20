@@ -22,6 +22,12 @@ python3 scripts/sign-connection.py --key issuer.pem --name "Studio Rossi" --url 
 
 The portal serves the resulting file as an attachment with MIME type `application/vnd.softwell.connection+json`. Its JSON envelope contains the base64-encoded payload and Ed25519 signature over the exact decoded payload bytes. Serve pre-issued files or issue from a trusted registry of application URLs.
 
+## Cargo feature `devices`
+
+The Python sidecar and card signing below are compiled only with the feature `devices`, on by default.
+`cargo tauri dev` includes them. The distributed macOS build is the site runner only and uses
+`--no-default-features`.
+
 ## Python sidecar
 
 Local devices are handled by a Python process started by the runner (`sidecar/`).
@@ -103,6 +109,20 @@ cargo tauri build --config tauri.bundle.json   # .app / .dmg on macOS, .msi / .e
 ```
 
 The window size and position are saved by `tauri-plugin-window-state`.
+
+## macOS release
+
+Universal build signed Developer ID, notarized, published to the public bucket `genroapp-downloads`:
+
+```bash
+macos/build-developer-id.sh
+macos/release.sh
+macos/publish.sh
+```
+
+- Download: `https://genroapp-downloads.fsn1.your-objectstorage.com/GenroApp.dmg`
+- The installed app checks `latest.json` at start and every hour and offers the update in the GenroApp menu.
+- Steps and requirements: `xmldocs/booklet/genroapp-macos-release`.
 
 ## License
 
