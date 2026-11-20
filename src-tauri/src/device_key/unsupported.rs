@@ -12,6 +12,10 @@ pub fn exists(_label: &str) -> bool {
     false
 }
 
+pub fn public_point(_label: &str) -> Result<Vec<u8>, String> {
+    Err(MISSING.into())
+}
+
 /// The public key (X9.63 uncompressed point) and the verification of a new key.
 pub fn create(_label: &str) -> Result<(Vec<u8>, Verification), String> {
     Err(MISSING.into())

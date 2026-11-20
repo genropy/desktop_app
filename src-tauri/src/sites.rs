@@ -148,6 +148,14 @@ pub fn set_primary(app: &AppHandle, origin: &str) -> Result<(), String> {
     write(&path, &sites)
 }
 
+/// Removes the saved site of `origin`.
+pub fn remove(app: &AppHandle, origin: &str) -> Result<(), String> {
+    let path = path(app)?;
+    let mut sites = read(&path)?;
+    sites.retain(|site| site.origin() != origin);
+    write(&path, &sites)
+}
+
 /// Adds the site of `link` to `sites`, or updates the one with the same origin.
 fn upsert(sites: &mut Vec<Site>, link: &Connection) -> Site {
     let origin = Url::parse(&link.url).map(|url| url.origin().ascii_serialization()).unwrap_or_default();

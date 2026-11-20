@@ -190,17 +190,21 @@ pub async fn device_sign(app: AppHandle, webview: Webview, origin: String, chall
 }
 
 /// Deletes the key of this computer for `origin` and forgets the user.
-#[tauri::command]
-pub async fn device_forget(app: AppHandle, webview: Webview, origin: String) -> Result<(), String> {
-    caller_site(&app, &webview, &origin)?;
-    let label = device_key::label(&origin);
+pub async fn forget(app: &AppHandle, origin: &str) -> Result<(), String> {
+    let label = device_key::label(origin);
     blocking(move || device_key::delete(&label)).await?;
-    sites::update(&app, &origin, |site| {
+    sites::update(app, origin, |site| {
         site.user = None;
         site.key_id = None;
         site.verification = None;
     })?;
     Ok(())
+}
+
+#[tauri::command]
+pub async fn device_forget(app: AppHandle, webview: Webview, origin: String) -> Result<(), String> {
+    caller_site(&app, &webview, &origin)?;
+    forget(&app, &origin).await
 }
 
 #[cfg(test)]

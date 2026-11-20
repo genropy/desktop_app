@@ -7,6 +7,7 @@ mod device_login;
 mod devices;
 mod documents;
 mod local;
+mod manage;
 use documents::{Document, Registry};
 #[cfg(target_os = "macos")]
 mod picker;
@@ -220,6 +221,7 @@ fn on_menu(app: &AppHandle, id: &str) -> tauri::Result<()> {
             refresh_menu(app)
         }
         "about" => release::open_about(app),
+        "manage" => manage::open(app),
         "install_update" => {
             release::install(app);
             Ok(())
@@ -303,7 +305,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_denylist(&[SETUP, PIN, local::WINDOW, sites::WINDOW, sites::CHOOSER])
+                .with_denylist(&[SETUP, PIN, local::WINDOW, sites::WINDOW, sites::CHOOSER, manage::WINDOW])
                 .build(),
         )
         .manage(PendingConnection::default())
@@ -320,6 +322,14 @@ pub fn run() {
             sites::site_error,
             sites::saved_sites,
             sites::open_sites,
+            manage::manage_features,
+            manage::manage_sites,
+            manage::manage_set_primary,
+            manage::manage_forget,
+            manage::manage_remove,
+            manage::manage_test_key,
+            #[cfg(feature = "devices")]
+            devices::card_test,
             device_login::device_status,
             device_login::device_register,
             device_login::device_sign,

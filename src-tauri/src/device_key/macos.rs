@@ -68,6 +68,16 @@ pub fn exists(label: &str) -> bool {
     matches!(find(label, None), Ok(Some(_)))
 }
 
+/// The public key of `label` as an X9.63 uncompressed point. Reading it asks nothing to the user.
+pub fn public_point(label: &str) -> Result<Vec<u8>, String> {
+    let key = find(label, None)?.ok_or("Questo computer non ha una chiave per il sito.")?;
+    let public = key
+        .public_key()
+        .and_then(|public| public.external_representation())
+        .ok_or("La chiave pubblica non è leggibile.")?;
+    Ok(public.to_vec())
+}
+
 /// Creates the key of `label`: finger only on a Mac with Touch ID, finger or password otherwise.
 /// Returns the public key as an X9.63 uncompressed point.
 pub fn create(label: &str) -> Result<(Vec<u8>, Verification), String> {
