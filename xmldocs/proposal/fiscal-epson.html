@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<!-- generated from fiscal-epson.xml by xmldocs: do not edit, edit the XML -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Epson fiscal cash registers built into GenroApp</title><style>
+:root {
+  --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8; --panel: #f3f1ec;
+  --code-bg: #f0eee8; --accent: #2f5d8a;
+  --ok: #2e7d4f; --warn: #a86b00; --bad: #b23b3b; --info: #2f5d8a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+    --code-bg: #26262a; --accent: #8fb4dc;
+    --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #18181a; --fg: #e8e6e1; --muted: #9a9890; --line: #33332f; --panel: #212123;
+  --code-bg: #26262a; --accent: #8fb4dc;
+  --ok: #6cc28f; --warn: #e0a940; --bad: #e57373; --info: #8fb4dc;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 1.9rem; line-height: 1.2; margin: 4px 0 8px; }
+h2 { font-size: 1.35rem; margin: 40px 0 12px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+h3 { font-size: 1.12rem; margin: 28px 0 8px; }
+h4 { font-size: 1rem; margin: 20px 0 6px; }
+a { color: var(--accent); }
+code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--code-bg);
+  padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
+pre { margin: 0; overflow-x: auto; }
+pre code { display: block; padding: 12px 14px; background: none; }
+figure { margin: 16px 0; }
+figure.code { background: var(--code-bg); border-radius: 8px; }
+figure.code figcaption { font-size: 0.8rem; color: var(--muted); padding: 8px 14px 0; }
+figure.diagram { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; overflow-x: auto; }
+figure.embed figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.embed svg { max-width: 100%; height: auto; }
+.tag-script { color: var(--bad); }
+figure.diagram figcaption { font-size: 0.85rem; color: var(--muted); text-align: center; margin-top: 8px; }
+figure.diagram svg { max-width: 100%; height: auto; }
+.diagram-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .diagram-light { display: none; }
+  :root:not([data-theme="light"]) .diagram-dark { display: block; }
+}
+:root[data-theme="dark"] .diagram-light { display: none; }
+:root[data-theme="dark"] .diagram-dark { display: block; }
+.doc-type { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--muted); }
+.doc-meta { display: flex; flex-wrap: wrap; gap: 12px; color: var(--muted); font-size: 0.9rem; }
+.muted { color: var(--muted); font-size: 0.9em; }
+.box { border: 1px solid var(--line); border-left: 4px solid var(--line); background: var(--panel);
+  border-radius: 6px; padding: 10px 14px; margin: 12px 0; }
+.box-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.box-foot { margin-top: 6px; }
+.box.fact { border-left-color: var(--info); }
+.box.rule-must { border-left-color: var(--ok); }
+.box.rule-must-not { border-left-color: var(--bad); }
+.box.rule-should { border-left-color: var(--warn); }
+.box.limit { border-left-color: var(--warn); }
+.box.decision-open, .box.decision-proposed { border-left-color: var(--warn); }
+.box.decision-decided { border-left-color: var(--ok); }
+.box.decision-rejected { border-left-color: var(--bad); }
+.box.example { border-left-color: var(--accent); }
+.box.done { border-left-color: var(--ok); }
+.tag-done { color: var(--ok); }
+.tag-doing, .tag-in-progress { color: var(--info); }
+.tag-todo { color: var(--muted); }
+.tag-approved { color: var(--ok); }
+.source { font-size: 0.8rem; }
+.why { margin-top: 4px; }
+.tag { display: inline-block; font-size: 0.72rem; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.04em; padding: 1px 7px; border-radius: 10px; border: 1px solid currentColor; color: var(--muted); }
+.tag-test, .tag-run, .tag-must, .tag-decided, .tag-accepted { color: var(--ok); }
+.tag-read, .tag-review { color: var(--info); }
+.tag-should, .tag-open, .tag-proposed, .tag-draft { color: var(--warn); }
+.tag-must-not, .tag-rejected { color: var(--bad); }
+.options li { margin: 6px 0; }
+.options li.chosen b { color: var(--ok); }
+.choice { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.step-num { color: var(--muted); font-weight: 400; margin-right: 6px; }
+.table-wrap { overflow-x: auto; margin: 16px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
+caption { text-align: left; color: var(--muted); padding-bottom: 6px; }
+th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+th { background: var(--panel); }
+  </style></head><body><main><header class="doc-head"><div class="doc-type">Proposal</div><h1>Epson fiscal cash registers built into GenroApp</h1><div class="doc-meta"><span>proposal/fiscal-epson</span><span>2026-11-20</span><span>Giovanni Porcari</span><span class="tag tag-draft">draft</span></div></header><section class="part problem"><h2>Problem</h2>
+    <p>A GenroPy page must print fiscal receipts and run the daily closure on a cash register of the shop. The page cannot reach the register by itself:</p>
+    <ul>
+      <li>the page is served over HTTPS and the register answers on the local network, often over plain HTTP: the browser blocks the mixed request;</li>
+      <li>the register is on a private address of the shop, which the GenroPy server cannot reach.</li>
+    </ul>
+    <p>GenroApp runs on the computer of the shop, on the same network as the register. It can send the request in Rust and give the answer to the page. The first registers are the Epson FP-81 II RT and FP-90 III RT. RCH Print!F and Custom may follow.</p>
+  </section><section class="part current"><h2>Current state</h2>
+    <ul>
+      <li>Cash registers are built into GenroApp in Rust, by the decision <a class="ref" href="../proposal/device-sidecar.html#d-builtin">d-builtin</a>.</li>
+      <li>No code in GenroApp talks to a cash register today.</li>
+    </ul>
+    <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/src/device_login.rs:37-56 (commit 13e1017)</code><span class="muted">2026-11-20</span></div><div>The device login commands are granted at runtime with a <code>CapabilityBuilder</code> limited to <code>{origin}/*</code> and to the window of the site. <code>documents::open</code> calls the grant only when the origin is a saved site (<code>src-tauri/src/documents.rs:71-73</code>).</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/capabilities/manage.json (commit 13e1017)</code><span class="muted">2026-11-20</span></div><div>The commands of the window Gestione are granted only to the local window <code>manage</code>, never to a site page.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/build.rs:5-31 (commit 13e1017)</code><span class="muted">2026-11-20</span></div><div>Each command gets an <code>allow-&lt;command&gt;</code> permission only when it is listed in <code>build.rs</code>.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">src-tauri/Cargo.toml (commit 13e1017)</code><span class="muted">2026-11-20</span></div><div>The crate has <code>reqwest</code> 0.13 with <code>rustls-no-provider</code> and <code>rustls</code> 0.23 with <code>ring</code>. It has no XML crate.</div></div>
+  </section><section class="part solution"><h2>Proposed solution</h2>
+    <section class="section"><h3>Protocol</h3>
+      <p>The protocol is Epson "ePOS Fiscal Print". The sources are three Epson documents published on <a href="https://www.scontrinosmart.it/en/fp81ii/documents">scontrinosmart.it</a>, all marked confidential by Epson:</p>
+      <ul>
+        <li>"ePOS Fiscal Print Solution Development Guide", FP 000 055 EN Rev. U, 2023-12-01 (below: Guide). Rev. T on download4.epson.biz answers HTTP 403; Rev. U replaces it.</li>
+        <li>"Fiscal Printer Intelligent Features Guide", FP 000 056 EN Rev. L, 2023-12-29, for both FP-81 II RT and FP-90 III RT (below: Features).</li>
+        <li>"Communication Protocol", FP 000 008 EN Rev 8.10, 2023-12-18 (below: Protocol).</li>
+      </ul>
+      <p>Secondary sources, used only to confirm: Epson <code>fiscalprint.js</code> 1.1.0, Odoo 19 <code>l10n_it_pos</code>, OCA <code>fiscal_epos_print</code>.</p>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §2.2.1-2.2.3</code><span class="muted">2026-11-20</span></div><div>A request is <code>POST /cgi-bin/fpmate.cgi?devid=local_printer&amp;timeout=10000</code> with <code>Content-Type: text/xml; charset=utf-8</code>. The body is a SOAP envelope <code>s:Envelope</code> / <code>s:Body</code> (namespace <code>http://schemas.xmlsoap.org/soap/envelope/</code>) holding one root: <code>printerFiscalReceipt</code>, <code>printerFiscalReport</code> or <code>printerCommand</code>.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Features §8</code><span class="muted">2026-11-20</span></div><div>HTTP or HTTPS is a setting of the register (SET 34, SSL MODE 0, 1 or 2), not of the model. With SSL on, only HTTPS on port 443 answers, with a self-signed or uploaded certificate.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §7, Features §2</code><span class="muted">2026-11-20</span></div><div>A user and password are optional on the register. On a standalone RT model they use HTTP Digest authentication.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §3.11, §6.1-6.2</code><span class="muted">2026-11-20</span></div><div>The answer is <code>&lt;response success="true|false" code="…" status="…"&gt;</code> with an <code>addInfo</code> child. <code>code</code> names the error (<code>PRINTER ERROR</code>, <code>EPTR_REC_EMPTY</code>, <code>PARSER_ERROR</code>, …); with <code>PRINTER ERROR</code>, <code>status</code> is the native error number of the Protocol §8.3.1.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §5.4.1, §5.8.1, §5.9.16</code><span class="muted">2026-11-20</span></div><div>After a receipt <code>addInfo</code> carries <code>fiscalReceiptNumber</code>, <code>fiscalReceiptAmount</code>, <code>fiscalReceiptDate</code>, <code>fiscalReceiptTime</code>, <code>zRepNumber</code>, <code>serialNumber</code>. After a report it carries <code>zRepNumber</code>, <code>dailyAmount</code>, <code>serialNumber</code>. After <code>queryPrinterStatus statusType="1"</code> it carries the <code>rt…</code> fields.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §2.2.2, §5.2</code><span class="muted">2026-11-20</span></div><div>Amounts and quantities in a request accept dot or comma, with no thousands separator. Amounts in an answer use a comma unless the URL carries <code>reply_decimal_separator=.</code>.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §3.13</code><span class="muted">2026-11-20</span></div><div>fpmate resets the register at every fiscal request: a receipt left open is cancelled.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §5.4.14</code><span class="muted">2026-11-20</span></div><div><code>paymentType</code> is <code>0</code> cash, <code>1</code> cheque, <code>2</code> credit or electronic, <code>3</code> ticket, <code>4</code> multiple tickets, <code>5</code> not paid, <code>6</code> payment discount. <code>index</code> selects the totaliser inside the type.</div></div>
+      <div class="box fact"><div class="box-head"><span class="tag tag-read">read</span><code class="source">Guide §6, Protocol §1</code><span class="muted">2026-11-20</span></div><div>The fpmate XML has no element specific to FP-81 II RT or FP-90 III RT. The differences are in native commands reached through <code>directIO</code>, which this proposal does not use.</div></div>
+      <p>Not verified, and left out of the first version:</p>
+      <ul>
+        <li>the details of the Digest authentication (realm, algorithm, qop);</li>
+        <li>whether the register refuses a request without <code>SOAPAction</code> or <code>If-Modified-Since</code>: GenroApp sends both, as the Guide and <code>fiscalprint.js</code> do;</li>
+        <li>the meaning of <code>payment="0"</code> on cash in the examples of the Guide: GenroApp always sends the amount;</li>
+        <li>the format of <code>rtExpiryCD</code> and <code>rtExpiryCA</code> (the Guide says <code>yyyymmdd</code>, the Protocol says <code>DDMMYY</code>): GenroApp passes them as text;</li>
+        <li>the name of each electronic totaliser <code>index</code> 1-10: it is a programming of each register.</li>
+      </ul>
+    </section>
+
+    <section class="section"><h3>Commands for the page</h3>
+      <p>Four commands, granted at runtime only to the windows of saved sites, for the origin of the site, like <code>device_login::grant</code>. Each command checks that <code>origin</code> is the origin of the calling page and of a saved site, like <code>device_login::caller_site</code>. The page never passes an address.</p>
+      <div class="table-wrap"><table>
+        <tr><th>Command</th><th>XML sent</th><th>Result</th></tr>
+        <tr><td><code>fiscal_status({origin})</code></td><td><code>queryPrinterStatus</code> with <code>statusType="0"</code>, then <code>"1"</code></td><td><code>{configured, printer_status, cpu_rel, mf_status, rt: {main_status, sub_status, daily_open, no_working_period, files_to_send, …}}</code></td></tr>
+        <tr><td><code>fiscal_receipt({origin, lines, payments})</code></td><td><code>printerFiscalReceipt</code>: <code>beginFiscalReceipt</code>, one <code>printRecItem</code> per line, one <code>printRecTotal</code> per payment, <code>endFiscalReceipt</code></td><td><code>{number, amount, date, time, z_number, serial}</code></td></tr>
+        <tr><td><code>fiscal_x_report({origin})</code></td><td><code>printerFiscalReport</code> / <code>printXReport</code></td><td><code>{z_number, daily_amount, serial}</code></td></tr>
+        <tr><td><code>fiscal_daily_closure({origin})</code></td><td><code>printerFiscalReport</code> / <code>printZReport</code></td><td><code>{z_number, daily_amount, serial}</code></td></tr>
+      </table></div>
+      <div class="box example"><div class="box-head"><b>Arguments of fiscal_receipt</b></div>
+        <figure class="code"><figcaption>json</figcaption><pre><code>{
+  "origin": "https://shop.example.com",
+  "lines": [
+    {"description": "PANINO", "quantity": "2", "unit_price": "6.00", "department": 1}
+  ],
+  "payments": [
+    {"type": "cash", "amount": "10.00"},
+    {"type": "electronic", "index": 1, "amount": "2.00"}
+  ]
+}</code></pre></figure>
+      </div>
+      <ul>
+        <li><code>type</code> is one of <code>cash</code>, <code>cheque</code>, <code>electronic</code>, <code>ticket</code>, <code>not_paid</code>, mapped to <code>paymentType</code> 0, 1, 2, 3, 5. <code>index</code> is optional; the register uses 1 when it is missing.</li>
+        <li>Amounts and quantities are decimal strings with a dot, at most 2 and 3 decimals, as the Guide §5.2 accepts them. A float from JavaScript is refused: it cannot carry cents exactly.</li>
+        <li>A description longer than 38 characters, or with a character the Guide §8 lists as not printable, is refused with an error. GenroApp does not truncate or replace text on its own.</li>
+        <li>An answer with <code>success="false"</code> becomes an error with <code>code</code>, <code>status</code> and, for a native error, its Italian name from the Protocol §8.3.1.</li>
+      </ul>
+      <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>GenroApp sends one request at a time to each register. A second command waits for the first one.</div><div class="muted why">fpmate resets the register at every request (Guide §3.13): a second request would cancel a receipt in progress</div></div>
+      <div class="box rule rule-must"><div class="box-head"><span class="tag tag-must">must</span></div><div>The HTTP timeout of GenroApp is longer than the <code>timeout</code> of the request: 10 s for status and receipts, 60 s for the closure.</div><div class="muted why">the Z report waits for the transmission to the tax authority before it answers (Guide §3.4)</div></div>
+    </section>
+
+    <section class="section"><h3>Configuration in Gestione</h3>
+      <p>The window Gestione gains a section "Registratore di cassa" for each saved site:</p>
+      <ul>
+        <li>address of the register (host or IP, optional port);</li>
+        <li>a box "HTTPS", for a register with SSL MODE 1 or 2;</li>
+        <li>a button "Prova", which runs <code>queryPrinterStatus</code> and shows serial number, firmware and RT state.</li>
+      </ul>
+      <p>The configuration is saved in <code>&lt;app config dir&gt;/fiscal.json</code>, keyed by the origin of the site. The commands of this section are granted only to the window <code>manage</code> (<code>capabilities/manage.json</code>).</p>
+    </section>
+
+    <section class="section"><h3>Code</h3>
+      <ul>
+        <li><code>src-tauri/src/fiscal.rs</code>: the four page commands, the grant, the configuration, the lock per register.</li>
+        <li><code>src-tauri/src/fiscal/epson.rs</code>: building the XML and reading the answer. No I/O, so the tests run without a register.</li>
+        <li><code>manage.rs</code>, <code>setup/manage.html</code>, <code>setup/manage.js</code>: the section of Gestione.</li>
+        <li><code>lib.rs</code> (handler list), <code>build.rs</code> (command list), <code>documents.rs</code> (call to the grant), <code>capabilities/manage.json</code>, <code>Cargo.toml</code> (XML crate).</li>
+      </ul>
+      <p>RCH and Custom get their own file beside <code>epson.rs</code> when they are written. A shared trait waits for the second register.</p>
+    </section>
+
+    <section class="section"><h3>Tests</h3>
+      <ul>
+        <li>The XML built for status, receipt, X report and Z report is compared with the expected text.</li>
+        <li>The answers are parsed from samples shaped like those of the Guide §5.4.1, §5.8.1, §5.9.16, §6.5 and §6.10: success, <code>PRINTER ERROR</code>, offline, comma amounts.</li>
+        <li>Validation: description too long, unsupported character, float amount, more than 2 decimals, unknown payment type.</li>
+      </ul>
+      <div class="box limit"><div>No test runs against a real register. A test on an FP-81 II RT or FP-90 III RT is needed before release, and it settles the points listed as not verified.</div></div>
+    </section>
+  </section><section class="part decisions"><h2>Decisions</h2>
+    <div class="box decision decision-proposed" id="d-fiscal-scope"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-fiscal-scope</span></div><div class="question">What does the first version cover?</div><ol class="options"><li id="d-fiscal-scope-min"><b>Status, receipt, X report, daily closure</b><p>Sales and payments only. No discounts, refunds, voids, lottery code, customer tax code.</p></li><li id="d-fiscal-scope-refund"><b>Also refund and void</b><p>Adds <code>printRecRefund</code> and the <code>REFUND</code> / <code>VOID</code> messages of the Guide §5.5. They need the number, date and serial of the original receipt.</p></li></ol></div>
+    <div class="box decision decision-proposed" id="d-fiscal-key"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-fiscal-key</span></div><div class="question">Is the register bound to a site or to the computer?</div><ol class="options"><li id="d-fiscal-key-site"><b>One register per saved site</b><p><code>fiscal.json</code> keyed by origin. Two sites on the same computer each name their register, also the same one.</p></li><li id="d-fiscal-key-computer"><b>One register per computer</b><p>Every saved site uses it. Simpler to configure; a site that should not print can still print.</p></li></ol></div>
+    <div class="box decision decision-proposed" id="d-fiscal-tls"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-fiscal-tls</span></div><div class="question">How does GenroApp trust the self-signed certificate of a register with HTTPS?</div><ol class="options"><li id="d-fiscal-tls-pin"><b>Pin the certificate at the test</b><p>"Prova" shows the SHA-256 fingerprint; the user confirms it and GenroApp saves it in <code>fiscal.json</code>. Later connections accept only that certificate. Needs a custom rustls verifier.</p></li><li id="d-fiscal-tls-any"><b>Accept any certificate</b><p>Encryption without identity: another machine on the network can answer in place of the register.</p></li></ol></div>
+    <div class="box decision decision-proposed" id="d-fiscal-auth"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-fiscal-auth</span></div><div class="question">What about a register with user and password (HTTP Digest)?</div><ol class="options"><li id="d-fiscal-auth-later"><b>Not in the first version</b><p>An answer 401 becomes the error "Il registratore chiede una password: non ancora supportato". Digest is added after a test on a real register.</p></li><li id="d-fiscal-auth-now"><b>Implement Digest now</b><p>Written without a verified realm and algorithm, and without a register to test it.</p></li></ol></div>
+    <div class="box decision decision-proposed" id="d-fiscal-confirm"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-fiscal-confirm</span></div><div class="question">Does GenroApp ask the user before the daily closure?</div><ol class="options"><li id="d-fiscal-confirm-yes"><b>Native dialog before the Z report</b><p>The closure cannot be undone. A dialog of GenroApp, not of the page, names the site and the register.</p></li><li id="d-fiscal-confirm-no"><b>The page decides</b><p>The page already asks; GenroApp runs the command.</p></li></ol></div>
+    <div class="box decision decision-proposed" id="d-fiscal-build"><div class="box-head"><span class="tag tag-proposed">proposed</span><span class="muted">d-fiscal-build</span></div><div class="question">Is the code always in the build, or behind a cargo feature?</div><ol class="options"><li id="d-fiscal-build-always"><b>Always built</b><p>No new dependency except an XML crate. It works in the distributed build, as <a class="ref" href="../proposal/device-sidecar.html#d-builtin">d-builtin</a> requires.</p></li><li id="d-fiscal-build-feature"><b>Feature fiscal</b><p>Fits the split of features under way in another branch. One more combination to build.</p></li></ol></div>
+  </section><section class="part consequences"><h2>Consequences</h2>
+    <ul>
+      <li><code>Cargo.toml</code> gains an XML crate (<code>quick-xml</code>) for reading the answer. The request is built by hand with escaping, so its text is fixed in the tests.</li>
+      <li>The files shared with the branches on local printing and on downloaded modules (<code>Cargo.toml</code>, <code>lib.rs</code>, <code>build.rs</code>, <code>manage.rs</code>, <code>setup/manage.*</code>) need an agreed order of merge.</li>
+      <li>A saved site can print fiscal receipts on the register configured for it, with no further confirmation except the closure if <a class="ref" href="#d-fiscal-confirm">d-fiscal-confirm</a> says so.</li>
+      <li>The register must be reachable from the computer: same network, port 80 or 443 open.</li>
+    </ul>
+  </section><section class="part related"><h2>Related documents</h2><ul>
+    <li><a href="../proposal/device-sidecar.html">proposal/device-sidecar</a><span class="tag">proposal</span> — Local devices through a Python sidecar</li>
+    <li><a href="../proposal/biometric-login.html">proposal/biometric-login</a><span class="tag">proposal</span> — GenroApp sites and biometric login through a device key</li>
+  </ul></section></main></body></html>
