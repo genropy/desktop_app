@@ -192,15 +192,17 @@ class Printers(object):
       <option id="d-data-path-direct" title="Sidecar to server"><p>The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.</p></option>
       <choice option="d-data-path-page" by="GP" date="2026-11-04">The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.</choice>
     </decision>
-    <decision id="d-builtin" status="proposed">
+    <decision id="d-builtin" status="decided">
       <question>Where do signature cards, printers and cash registers live?</question>
       <option id="d-builtin-rust" title="Built into GenroApp, in Rust"><p>They work in the distributed build with no Python runtime. A change needs a new release of GenroApp.</p></option>
       <option id="d-builtin-python" title="Sidecar modules"><p>One mechanism for every device. The distributed build always carries the Python runtime.</p></option>
+      <choice option="d-builtin-rust" by="GP" date="2026-11-20">Cards, printers and cash registers are built into GenroApp in Rust.</choice>
     </decision>
-    <decision id="d-module-source" status="proposed">
+    <decision id="d-module-source" status="decided">
       <question>How does a module reach the computer of a customer?</question>
       <option id="d-module-source-frozen" title="Frozen in the sidecar"><p>Every module is in every app. A new module needs a new release.</p></option>
       <option id="d-module-source-download" title="Downloaded signed package"><p>A module reaches only the sites listed in its manifest, without a new release. Needs the signature and hash checks above.</p></option>
+      <choice option="d-module-source-download" by="GP" date="2026-11-20">Modules specific to a customer are downloaded as packages signed by Softwell.</choice>
     </decision>
     <decision id="d-medical" status="open">
       <question>Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.</question>

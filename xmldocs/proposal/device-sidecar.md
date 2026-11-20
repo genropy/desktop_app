@@ -192,12 +192,14 @@ With the Python sidecar the shell is a small fixed layer: window, permissions, f
    1. **Through the page**: The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.
    2. **Sidecar to server**: The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.
    → Choice: **Through the page** (GP, 2026-11-04) — The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.
-- **d-builtin** `proposed` — Where do signature cards, printers and cash registers live?
+- **d-builtin** `decided` — Where do signature cards, printers and cash registers live?
    1. **Built into GenroApp, in Rust**: They work in the distributed build with no Python runtime. A change needs a new release of GenroApp.
    2. **Sidecar modules**: One mechanism for every device. The distributed build always carries the Python runtime.
-- **d-module-source** `proposed` — How does a module reach the computer of a customer?
+   → Choice: **Built into GenroApp, in Rust** (GP, 2026-11-20) — Cards, printers and cash registers are built into GenroApp in Rust.
+- **d-module-source** `decided` — How does a module reach the computer of a customer?
    1. **Frozen in the sidecar**: Every module is in every app. A new module needs a new release.
    2. **Downloaded signed package**: A module reaches only the sites listed in its manifest, without a new release. Needs the signature and hash checks above.
+   → Choice: **Downloaded signed package** (GP, 2026-11-20) — Modules specific to a customer are downloaded as packages signed by Softwell.
 - **d-medical** `open` — Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.
    1. **Not medical device software: data transfer only**
    2. **Medical device software: certification needed**
