@@ -1,6 +1,6 @@
 [package]
 name = "genropy-runner"
-version = "0.1.0"
+version = "0.2.0"
 description = "Desktop window for a GenroPy instance"
 license = "Apache-2.0"
 edition = "2021"
