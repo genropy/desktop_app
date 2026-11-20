@@ -1,7 +1,7 @@
 [project]
 name = "genropy-runner-sidecar"
 version = "0.1.0"
-description = "Python sidecar of GenroPy Runner: local devices for the GenroPy page"
+description = "Python sidecar of GenroApp: local devices for the GenroPy page"
 requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [

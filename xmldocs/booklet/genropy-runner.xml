@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<booklet id="booklet/genropy-runner" title="GenroPy Runner: a desktop window with card signing" date="2026-11-04" lang="en" author="Giovanni Porcari">
+<booklet id="booklet/genropy-runner" title="GenroApp: a desktop window with card signing" date="2026-11-04" lang="en" author="Giovanni Porcari">
   <purpose>
-    <p>How to build, configure and use GenroPy Runner: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.</p>
+    <p>How to build, configure and use GenroApp: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.</p>
     <p>Other local devices go through a Python sidecar started by the runner; the first module, <c>inbox</c>, hands documents dropped in a Finder folder to a GenroPy page.</p>
     <p>The project lives in <c>~/Sviluppo/tauri</c>. The signing logic is a Rust port of <c>firmatore_mac/tessere.py</c> from icond, branch <c>firma-digitale-protocolli</c>.</p>
     <diagram kind="mermaid" title="Signing from the GenroPy page"><![CDATA[
@@ -182,8 +182,8 @@ cargo tauri build --config tauri.bundle.json
     <p><c>--config tauri.bundle.json</c> first runs <c>scripts/build-sidecar.sh</c> (PyInstaller through <c>uv</c>), then puts the sidecar executable in the bundle next to the runner: <c>Contents/MacOS/genropy-sidecar</c>.</p>
     <table title="Output on macOS (Apple Silicon)">
       <row head="true"><cell>File</cell><cell>Size</cell></row>
-      <row><cell><c>target/release/bundle/macos/GenroPy Runner.app</c></cell><cell>21 MB, of which the sidecar 10.3 MB</cell></row>
-      <row><cell><c>target/release/bundle/dmg/GenroPy Runner_0.1.0_aarch64.dmg</c></cell><cell>3.82 MiB</cell></row>
+      <row><cell><c>target/release/bundle/macos/GenroApp.app</c></cell><cell>21 MB, of which the sidecar 10.3 MB</cell></row>
+      <row><cell><c>target/release/bundle/dmg/GenroApp_0.1.0_aarch64.dmg</c></cell><cell>3.82 MiB</cell></row>
     </table>
     <p>The <c>.app</c> starts with a double click. Mac Intel needs a universal build:</p>
     <code lang="bash"><![CDATA[

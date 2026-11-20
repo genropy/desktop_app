@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- generated from signing-flow.xml by xmldocs: do not edit, edit the XML -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signing server PDFs with the GenroPy Runner</title><style>
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Signing server PDFs with the GenroApp</title><style>
 :root {
   --bg: #fbfaf7; --fg: #1d1d1b; --muted: #6b6a66; --line: #e2dfd8; --panel: #f3f1ec;
   --code-bg: #f0eee8; --accent: #2f5d8a;
@@ -86,7 +86,7 @@ table { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
 caption { text-align: left; color: var(--muted); padding-bottom: 6px; }
 th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
 th { background: var(--panel); }
-  </style></head><body><main><header class="doc-head"><div class="doc-type">Proposal</div><h1>Signing server PDFs with the GenroPy Runner</h1><div class="doc-meta"><span>proposal/signing-flow</span><span>2026-11-04</span><span>Giovanni Porcari</span><span class="tag tag-draft">draft</span></div></header><section class="part problem"><h2>Problem</h2>
+  </style></head><body><main><header class="doc-head"><div class="doc-type">Proposal</div><h1>Signing server PDFs with the GenroApp</h1><div class="doc-meta"><span>proposal/signing-flow</span><span>2026-11-04</span><span>Giovanni Porcari</span><span class="tag tag-draft">draft</span></div></header><section class="part problem"><h2>Problem</h2>
     <p>A GenroPy application produces PDFs on the server. A user must sign them with a qualified signature, using a smart card or a USB key on the user's own Mac or PC.</p>
     <ul>
       <li>A page in a normal browser cannot reach the card: no web API gives access to the keys of a smart card.</li>
@@ -104,7 +104,7 @@ th { background: var(--panel); }
     </ol>
     <p>Browser and agent never talk to each other: they meet only on the server. The server side is <code>preparaFirma</code> and <code>completaFirma</code> in <code>studio/lib/firma_digitale.py</code>, on <code>PdfSigner.async_digest_doc_for_signing</code> and <code>PdfTBSDocument.async_finish_signing</code> of pyHanko 0.38.</p>
   </section><section class="part solution"><h2>Proposed solution</h2>
-    <p>The GenroPy Runner replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.</p>
+    <p>The GenroApp replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.</p>
 
     <section class="section"><h3>Direct mode: the page runs inside the runner</h3>
       <p>The page in the runner window calls the card commands itself. Authorization and signature become the same click, and the result is immediate.</p>
@@ -175,6 +175,6 @@ th { background: var(--panel); }
       <li>When the card logic moves to the Python sidecar (<a class="ref" href="../proposal/device-sidecar.html#d-modules">device-sidecar</a>), the page calls <code>device_call</code> instead of <code>card_sign</code>. The flow does not change.</li>
     </ul>
   </section><section class="part related"><h2>Related documents</h2><ul>
-    <li><a href="../booklet/genropy-runner.html">booklet/genropy-runner</a><span class="tag">booklet</span> — GenroPy Runner: a desktop window with card signing</li>
+    <li><a href="../booklet/genropy-runner.html">booklet/genropy-runner</a><span class="tag">booklet</span> — GenroApp: a desktop window with card signing</li>
     <li><a href="../proposal/device-sidecar.html">proposal/device-sidecar</a><span class="tag">proposal</span> — Local devices through a Python sidecar</li>
   </ul></section></main></body></html>

@@ -82,4 +82,4 @@ Per chiudere la tessera prima, estraila dal lettore o chiudi l'app. Alla firma s
 
 ### Related documents
 
-- `proposal/signing-flow` (proposal) — Signing server PDFs with the GenroPy Runner
+- `proposal/signing-flow` (proposal) — Signing server PDFs with the GenroApp

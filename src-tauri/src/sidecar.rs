@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::sync::oneshot;
 
 type Pending = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
@@ -41,7 +41,7 @@ fn command() -> Result<Command, String> {
 }
 
 impl Sidecar {
-    pub fn start(app: AppHandle, main_window: &'static str, config: &Path) -> Result<Self, String> {
+    pub fn start(app: AppHandle, config: &Path) -> Result<Self, String> {
         let mut command = command()?;
         let mut child = command
             .arg("--config")
@@ -59,7 +59,7 @@ impl Sidecar {
             for line in BufReader::new(stdout).lines() {
                 let Ok(line) = line else { break };
                 match serde_json::from_str::<Value>(&line) {
-                    Ok(message) => dispatch(&app, main_window, &reader_pending, message),
+                    Ok(message) => dispatch(&app, &reader_pending, message),
                     Err(e) => eprintln!("[runner] sidecar line is not JSON ({e}): {line}"),
                 }
             }
@@ -94,7 +94,7 @@ impl Sidecar {
     }
 }
 
-fn dispatch(app: &AppHandle, main_window: &str, pending: &Pending, message: Value) {
+fn dispatch(app: &AppHandle, pending: &Pending, message: Value) {
     if let Some(id) = message.get("id").and_then(Value::as_u64) {
         let Some(reply) = pending.lock().unwrap().remove(&id) else {
             eprintln!("[runner] sidecar answer with unknown id {id}");
@@ -110,7 +110,10 @@ fn dispatch(app: &AppHandle, main_window: &str, pending: &Pending, message: Valu
         };
         let _ = reply.send(result);
     } else if message.get("event").is_some() {
-        if let Err(e) = app.emit_to(main_window, "device-event", message) {
+        let Some((label, doc)) = crate::documents::active(app) else { return };
+        let Some(window) = app.get_webview_window(&label) else { return };
+        if window.url().ok().map(|u| u.origin()) != tauri::Url::parse(&doc.url).ok().map(|u| u.origin()) { return; }
+        if let Err(e) = app.emit_to(&*label, "device-event", message) {
             eprintln!("[runner] cannot emit device-event: {e}");
         }
     } else if let Some(modules) = message.get("modules") {

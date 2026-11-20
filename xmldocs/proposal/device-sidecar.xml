@@ -13,7 +13,7 @@
 
   <current>
     <list>
-      <item><b>GenroPy Runner</b> (this repository): Tauri 2 shell with the card logic in Rust, <c>src-tauri/src/card.rs</c>. See <ref doc="booklet/genropy-runner" to="s-sign">the booklet</ref>.</item>
+      <item><b>GenroApp</b> (this repository): Tauri 2 shell with the card logic in Rust, <c>src-tauri/src/card.rs</c>. See <ref doc="booklet/genropy-runner" to="s-sign">the booklet</ref>.</item>
       <item><b>icond signing agent</b> (<c>firmatore_mac/</c>, branch <c>firma-digitale-protocolli</c>): Python app in the menu bar or tray, PyKCS11, polls icond every 30 seconds. On Windows it is a 32-bit PyInstaller build, because the bit4id DLL of Firma4NG is 32-bit only.</item>
       <item><b>Mobile</b>: Android and iOS apps are built with Capacitor.</item>
     </list>
@@ -180,6 +180,6 @@ class Printers(object):
   </consequences>
 
   <related>
-    <doc id="booklet/genropy-runner" type="booklet">GenroPy Runner: a desktop window with card signing</doc>
+    <doc id="booklet/genropy-runner" type="booklet">GenroApp: a desktop window with card signing</doc>
   </related>
 </proposal>

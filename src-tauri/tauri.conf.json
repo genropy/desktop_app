@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "GenroPy Runner",
+  "productName": "GenroApp",
   "version": "0.1.0",
   "identifier": "it.softwell.genropy.runner",
   "build": {
@@ -22,6 +22,26 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "fileAssociations": [
+      {
+        "ext": [
+          "softwell", "rundoc"
+        ],
+        "name": "Collegamento SoftWell",
+        "role": "Viewer",
+        "rank": "Owner",
+        "mimeType": "application/vnd.softwell.connection+json",
+        "exportedType": {
+          "identifier": "it.softwell.runner.connection",
+          "conformsTo": [
+            "public.json"
+          ]
+        }
+      }
+    ],
+    "resources": {
+      "icons/softwell-link.icns": "softwell-link.icns"
+    }
   }
 }

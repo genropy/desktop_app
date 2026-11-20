@@ -16,7 +16,7 @@ The device code must be written in Python, the language of the GenroPy team and 
 
 ### Current state
 
-- **GenroPy Runner** (this repository): Tauri 2 shell with the card logic in Rust, `src-tauri/src/card.rs`. See the booklet (→ booklet/genropy-runner#s-sign).
+- **GenroApp** (this repository): Tauri 2 shell with the card logic in Rust, `src-tauri/src/card.rs`. See the booklet (→ booklet/genropy-runner#s-sign).
 - **icond signing agent** (`firmatore_mac/`, branch `firma-digitale-protocolli`): Python app in the menu bar or tray, PyKCS11, polls icond every 30 seconds. On Windows it is a 32-bit PyInstaller build, because the bit4id DLL of Firma4NG is 32-bit only.
 - **Mobile**: Android and iOS apps are built with Capacitor.
 
@@ -173,4 +173,4 @@ With the Python sidecar the shell is a small fixed layer: window, permissions, f
 
 ### Related documents
 
-- `booklet/genropy-runner` (booklet) — GenroPy Runner: a desktop window with card signing
+- `booklet/genropy-runner` (booklet) — GenroApp: a desktop window with card signing

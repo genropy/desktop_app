@@ -1,0 +1,13 @@
+{
+  "productName": "icond app",
+  "identifier": "it.softwell.icond.app",
+  "bundle": {
+    "icon": [
+      "../brands/icond/icons/32x32.png",
+      "../brands/icond/icons/128x128.png",
+      "../brands/icond/icons/128x128@2x.png",
+      "../brands/icond/icons/icon.icns",
+      "../brands/icond/icons/icon.ico"
+    ]
+  }
+}

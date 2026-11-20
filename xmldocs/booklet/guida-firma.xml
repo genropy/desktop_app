@@ -79,6 +79,6 @@
   </limits>
 
   <related>
-    <doc id="proposal/signing-flow" type="proposal">Signing server PDFs with the GenroPy Runner</doc>
+    <doc id="proposal/signing-flow" type="proposal">Signing server PDFs with the GenroApp</doc>
   </related>
 </booklet>

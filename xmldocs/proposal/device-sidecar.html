@@ -97,7 +97,7 @@ th { background: var(--panel); }
     <p>The device code must be written in Python, the language of the GenroPy team and of the existing signing agent of icond. Writing each device in Rust inside the Tauri shell does not scale.</p>
   </section><section class="part current"><h2>Current state</h2>
     <ul>
-      <li><b>GenroPy Runner</b> (this repository): Tauri 2 shell with the card logic in Rust, <code>src-tauri/src/card.rs</code>. See <a class="ref" href="../booklet/genropy-runner.html#s-sign">the booklet</a>.</li>
+      <li><b>GenroApp</b> (this repository): Tauri 2 shell with the card logic in Rust, <code>src-tauri/src/card.rs</code>. See <a class="ref" href="../booklet/genropy-runner.html#s-sign">the booklet</a>.</li>
       <li><b>icond signing agent</b> (<code>firmatore_mac/</code>, branch <code>firma-digitale-protocolli</code>): Python app in the menu bar or tray, PyKCS11, polls icond every 30 seconds. On Windows it is a 32-bit PyInstaller build, because the bit4id DLL of Firma4NG is 32-bit only.</li>
       <li><b>Mobile</b>: Android and iOS apps are built with Capacitor.</li>
     </ul>
@@ -216,5 +216,5 @@ class Printers(object):
       <li>Mobile stays on Capacitor. A page can detect the platform with <code>window.Capacitor</code>, <code>window.__TAURI__</code> or neither.</li>
     </ul>
   </section><section class="part related"><h2>Related documents</h2><ul>
-    <li><a href="../booklet/genropy-runner.html">booklet/genropy-runner</a><span class="tag">booklet</span> — GenroPy Runner: a desktop window with card signing</li>
+    <li><a href="../booklet/genropy-runner.html">booklet/genropy-runner</a><span class="tag">booklet</span> — GenroApp: a desktop window with card signing</li>
   </ul></section></main></body></html>

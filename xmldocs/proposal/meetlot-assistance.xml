@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proposal id="proposal/meetlot-assistance" title="Remote assistance from GenroApp, with code shared with the Meetlot desktop app" date="2026-11-19" lang="en" author="Giovanni Porcari" status="draft">
+
+  <problem>
+    <p>A GenroApp user who needs help has the menu item "Richiedi assistenza…". It opens <c>https://meetlot.genro.com/support</c>. That page does not exist on the Meetlot server.</p>
+    <p>The remote control of a Mac, the sign-in through the system browser and the Developer ID signing exist today only inside the Meetlot desktop app. GenroApp needs the first and the third, and could need the second. Copying them into GenroApp gives two copies to keep aligned.</p>
+    <p>Signing and notarization are a Softwell process for every app of team <c>HXS58UUB2N</c>. Today they are written as Meetlot scripts, with Meetlot names and a personal notarytool profile.</p>
+  </problem>
+
+  <current>
+    <section title="GenroApp">
+      <fact source="genroapp: src-tauri/src/lib.rs:170-173" method="read" verified="2026-11-19">The menu has a "Meetlot" submenu with "Riunioni di team" and an "Assistenza" submenu with "Richiedi assistenza…". This code is in the working tree, not committed.</fact>
+      <fact source="genroapp: src-tauri/src/lib.rs:180-186" method="read" verified="2026-11-19">"Riunioni di team" opens <c>https://meetlot.genro.com/call</c> in a window; "Richiedi assistenza…" opens <c>https://meetlot.genro.com/support</c> with <c>app=&lt;name of the active document&gt;</c>.</fact>
+      <fact source="genroapp: src-tauri/src/lib.rs:120-127" method="read" verified="2026-11-19">Both windows are plain webviews: no initialization script, no native command granted.</fact>
+      <fact source="genroapp: src-tauri/tauri.conf.json" method="read" verified="2026-11-19">Bundle id <c>it.softwell.genropy.runner</c>.</fact>
+      <fact source="genroapp: src-tauri/src/sidecar.rs:38" method="read" verified="2026-11-19">The app runs a Python sidecar named <c>genropy-sidecar</c>, a second executable to sign inside the bundle.</fact>
+      <fact source="genroapp: xmldocs/booklet/genropy-runner.xml:224,262-266" method="read" verified="2026-11-19">The app is signed ad hoc. The decision "How is the macOS app notarized?" is open, between an Apple ID with app-specific password and an App Store Connect API key.</fact>
+    </section>
+    <section title="Meetlot desktop app (kajenn-webrtc/desktop)">
+      <fact source="kajenn-webrtc: desktop/src-tauri/src/support.rs:28-53,125-198" method="read" verified="2026-11-19">Remote control state: one grant per app with lease, window, target process and window id. It ends on stop, on a heartbeat older than 9 seconds, after 30 minutes, on navigation and when the window closes.</fact>
+      <fact source="kajenn-webrtc: desktop/src-tauri/src/support.rs:39-43" method="read" verified="2026-11-19">The native commands accept only a page whose origin is <c>https://meetlot.genro.com</c> and whose path is <c>/call</c>.</fact>
+      <fact source="kajenn-webrtc: desktop/src-tauri/src/assistance.m:55-97" method="read" verified="2026-11-19">The native consent panel is an <c>NSAlert</c> that names the controller and lets the user choose the controllable window.</fact>
+      <fact source="kajenn-webrtc: desktop/src-tauri/src/support.js:2-3" method="read" verified="2026-11-19">The page adapter runs only in the top frame of <c>https://meetlot.genro.com/call</c>.</fact>
+      <fact source="kajenn-webrtc: desktop/src-tauri/src/control_log.rs:13-16" method="read" verified="2026-11-19">The control log is written in <c>~/Library/Logs/Meetlot/controllo.log</c>.</fact>
+      <fact source="kajenn-webrtc: desktop/src-tauri/src/browser_login.rs:14-15,30-41" method="read" verified="2026-11-19">The system-browser sign-in has the Keycloak realm <c>softwell</c>, the client id <c>meetlot</c> and the Meetlot callback written as constants.</fact>
+      <fact source="kajenn-webrtc: desktop/macos/build-developer-id.sh:5,31-32,53-55" method="read" verified="2026-11-19">The release script has the team, the bundle id <c>it.softwell.meetlot</c>, the sidecar name <c>meetlot-assist</c> and the camera and microphone entitlements written in it.</fact>
+      <fact source="kajenn-webrtc: desktop/macos/developer-id-profile.sh:12-29" method="read" verified="2026-11-19">The provisioning-profile script builds an empty Xcode project whose only Meetlot-specific values are the bundle id and the entitlements file.</fact>
+      <fact source="kajenn-webrtc: xmldocs/booklet/meetlot-macos-release.xml" method="read" verified="2026-11-19">Notarization runs by hand with the keychain profile <c>gp-notary-tool</c>, an Apple ID with an app-specific password.</fact>
+      <p>The proposal "Full-screen remote control in the Meetlot desktop app" (<c>kajenn-webrtc/xmldocs/proposal/meetlot-full-screen-control.xml</c>, not committed yet) replaces the Accessibility actions with real <c>CGEventPost</c> events, allows control only on a whole shared display, adds the controller zoom and the local-user pause.</p>
+    </section>
+    <section title="Meetlot server (kajenn-webrtc)">
+      <fact source="kajenn-webrtc: src/kajenn_webrtc/application.py:58-69" method="read" verified="2026-11-19">The server has rules for <c>/admin</c> and <c>/call</c> only. No page, asset or route answers <c>/support</c>.</fact>
+      <fact source="kajenn-webrtc: src/kajenn_webrtc/rooms.py:24-34" method="read" verified="2026-11-19">A room is created from a description: room id, administrator and guest invitations valid 7 days. The LiveKit room is created when the administrator joins.</fact>
+      <fact source="gramlot-webrtc: src/gramlot_webrtc/rooms.py:267-278" method="read" verified="2026-11-19"><c>RtcRooms.create_room</c> passes only the name and the metadata to <c>CreateRoomRequest</c>: no participant limit.</fact>
+      <fact source="kajenn-webrtc: src/kajenn_webrtc/sourcerer/probe.py:89-95" method="read" verified="2026-11-19">The LiveKit API used by the project accepts <c>max_participants</c>, <c>empty_timeout</c> and <c>departure_timeout</c> in <c>CreateRoomRequest</c>.</fact>
+    </section>
+    <section title="Apple tooling">
+      <fact source="xcrun notarytool submit --help" method="run" verified="2026-11-19"><c>notarytool</c> accepts an App Store Connect API key with <c>--key</c>, <c>--key-id</c> and <c>--issuer</c>, also in <c>store-credentials</c>.</fact>
+    </section>
+  </current>
+
+  <solution>
+    <section title="1. Shared code: one Tauri plugin crate">
+      <p>The shared desktop code moves into one Rust crate, a Tauri 2 plugin. The crate has no name yet. Both apps depend on it by git tag.</p>
+      <table title="What moves into the crate">
+        <row head="true"><cell>Part</cell><cell>Today in Meetlot</cell><cell>In the crate</cell></row>
+        <row><cell>Native input on macOS</cell><cell><c>assistance.m</c></cell><cell>The <c>CGEventPost</c> version of the full-screen control proposal, built by the crate's <c>build.rs</c>.</cell></row>
+        <row><cell>Consent panel</cell><cell><c>assistance.m:69-96</c></cell><cell>Same panel, text "control covers the whole screen", display choice on several displays.</cell></row>
+        <row><cell>Lease, heartbeat, time limit, revoke</cell><cell><c>support.rs</c></cell><cell>Same rules; the commands <c>support_start</c> and <c>support_event</c> become plugin commands.</cell></row>
+        <row><cell>Page adapter</cell><cell><c>support.js</c></cell><cell>Initialization script that the plugin adds to the windows the app names.</cell></row>
+        <row><cell>Control log</cell><cell><c>control_log.rs</c></cell><cell>Same file format; the directory comes from the app name.</cell></row>
+        <row><cell>Stop control</cell><cell>Menu item in <c>main.rs</c></cell><cell>Global shortcut registered by the plugin.</cell></row>
+        <row><cell>System-browser sign-in</cell><cell><c>browser_login.rs</c></cell><cell>Same flow; Keycloak endpoint, client id and server callback passed by the app.</cell></row>
+      </table>
+      <p>Each app gives the plugin its own configuration:</p>
+      <list>
+        <item>the trusted pages: origin and paths (Meetlot: <c>/call</c>; GenroApp: <c>/support</c>);</item>
+        <item>the window labels that receive the page adapter;</item>
+        <item>the Keycloak client and callback, only for an app that uses the sign-in.</item>
+      </list>
+      <rule level="must" why="A page outside the list could otherwise ask for control of the Mac.">The plugin refuses the native commands from any page outside the trusted pages of the app.</rule>
+      <p>Each app keeps its own windows, menus, bundle id, Info.plist strings and sidecar.</p>
+    </section>
+
+    <section title="2. Signing and notarization as a Softwell process">
+      <p>One set of scripts and one booklet serve every macOS app of team <c>HXS58UUB2N</c>. They take the app-specific values as input:</p>
+      <list>
+        <item>bundle id;</item>
+        <item>path of the built <c>.app</c>;</item>
+        <item>entitlements file;</item>
+        <item>nested executables to sign first, each with its identifier (Meetlot: <c>meetlot-assist</c>; GenroApp: <c>genropy-sidecar</c>).</item>
+      </list>
+      <p>The scripts do, in order: Developer ID provisioning profile through the empty Xcode project, signing with hardened runtime and timestamp, notarization of the zip, staple, rebuild of the zip, dmg signed and notarized, verification with <c>spctl</c> and <c>stapler validate</c>.</p>
+      <p>Notarization uses a team App Store Connect API key, not a personal Apple ID:</p>
+      <list>
+        <item>Only the Account Holder can request API access in App Store Connect. Until then the personal profile <c>gp-notary-tool</c> stays in use.</item>
+        <item>The <c>.p8</c> key, its key id and the issuer id are kept in 1Password, vault "Comuni Softwell".</item>
+        <item>On each build Mac, <c>notarytool store-credentials</c> saves them in the keychain under one profile name agreed by the team.</item>
+        <item>The updater private key of each app also lives in that vault, one key per app.</item>
+      </list>
+      <rule level="must-not" why="It gives access to the notary service of the team.">Write the API key, its ids or an updater private key in a repository.</rule>
+      <p>The Meetlot booklet "Release Meetlot for macOS" becomes the Softwell booklet; Meetlot and GenroApp keep only their inputs.</p>
+    </section>
+
+    <section title="3. The assistance flow">
+      <diagram kind="mermaid" title="A request for assistance from GenroApp"><![CDATA[
+sequenceDiagram
+    participant C as Customer (GenroApp)
+    participant S as Meetlot server /support
+    participant O as Operator
+    participant L as LiveKit
+    C->>S: open /support?app=NAME
+    S->>S: record the request, create room id
+    S->>L: create room, max_participants 2
+    S-->>C: waiting page, joined to the room
+    S-->>O: new request in the operator list, notification
+    O->>S: take the request
+    S-->>O: token for the room
+    O->>L: join
+    C->>L: share the whole display
+    O->>C: ask for control
+    C->>C: native consent panel
+    O->>C: real input events
+    O->>S: close the request
+    S->>L: end room
+]]></diagram>
+      <section title="What /support does for the customer">
+        <list ordered="true">
+          <item>Shows a form: the customer's name and one line on the problem. <c>app</c> from the query prefills the application name.</item>
+          <item>On submit, records the request and creates a dedicated room on the fly: LiveKit room with <c>max_participants</c> 2 and a short <c>empty_timeout</c>.</item>
+          <item>Joins the customer to the room and shows "waiting for an operator", with the position in the queue.</item>
+          <item>When the operator joins, offers one action: share the whole display.</item>
+          <item>When the operator asks for control, the native consent panel of the plugin opens.</item>
+          <item>Leaving the page, or the end of the request, ends sharing and control.</item>
+        </list>
+        <p>The page offers no room list, no invitations, no chat history, no recording.</p>
+      </section>
+      <section title="What /support does for the operator">
+        <list ordered="true">
+          <item>An operator is a signed-in user with a dedicated tag. Without the tag the page shows the customer view.</item>
+          <item>The operator view lists the open requests live: time, customer name, application, problem line, state (waiting, taken, closed).</item>
+          <item>A new request raises a notification to every operator whose list is open.</item>
+          <item>"Take" assigns the request to the first operator who presses it; the others see it as taken.</item>
+          <item>The operator joins the room and has the remote control of the full-screen control proposal, zoom included.</item>
+          <item>"Close" ends the room and marks the request closed.</item>
+        </list>
+      </section>
+      <rule level="must" why="A third person cannot enter an assistance session.">The support room admits at most 2 participants; LiveKit enforces it with <c>max_participants</c>.</rule>
+      <rule level="must" why="Control covers the whole screen of the customer.">Control in the support room needs the native consent of the customer at each request, as in Meetlot.</rule>
+      <p>The server side needs a participant limit in <c>RtcRooms.create_room</c> (gramlot-webrtc) and the request list in kajenn-webrtc. The minimal client side is the <c>/support</c> page plus the plugin in GenroApp; GenroApp does not include the rest of Meetlot.</p>
+    </section>
+  </solution>
+
+  <decisions>
+    <decision id="d-crate-home" status="open">
+      <question>Where does the shared crate live?</question>
+      <option id="d-crate-repo" title="Its own repository, both apps depend on a git tag"/>
+      <option id="d-crate-webrtc" title="Inside kajenn-webrtc/desktop, GenroApp depends on a git path of that repository"/>
+      <option id="d-crate-genroapp" title="Inside genroapp, Meetlot depends on it"/>
+    </decision>
+    <decision id="d-crate-org" status="open">
+      <question>If it has its own repository, under which GitHub organisation? GenroApp is in <c>genropy</c>, Meetlot in <c>kajenn-org</c>.</question>
+    </decision>
+    <decision id="d-order" status="open">
+      <question>Does the crate start from today's Accessibility control or after the full-screen control proposal is implemented in Meetlot?</question>
+      <option id="d-order-after" title="After: the crate starts from CGEventPost"/>
+      <option id="d-order-before" title="Before: extract now, change inside the crate"/>
+    </decision>
+    <decision id="d-signing-home" status="open">
+      <question>Where do the Softwell signing scripts and booklet live?</question>
+      <option id="d-signing-crate" title="In the repository of the shared crate"/>
+      <option id="d-signing-own" title="In a repository of their own"/>
+    </decision>
+    <decision id="d-notary-profile" status="open">
+      <question>Which keychain profile name do build Macs use for the team API key?</question>
+    </decision>
+    <decision id="d-customer-identity" status="open">
+      <question>How does /support know who the customer is?</question>
+      <option id="d-customer-typed" title="Name typed in the form, no sign-in"/>
+      <option id="d-customer-signed" title="Request signed by the GenroPy instance the customer works in"/>
+      <option id="d-customer-keycloak" title="Keycloak sign-in through the system browser"/>
+    </decision>
+    <decision id="d-abuse" status="open">
+      <question>Who may open a request? Without a limit any browser can create rooms on /support.</question>
+    </decision>
+    <decision id="d-operator-tag" status="open">
+      <question>Which identity tag marks a support operator?</question>
+    </decision>
+    <decision id="d-notify" status="open">
+      <question>How is an operator with no open list notified?</question>
+      <option id="d-notify-list" title="Only operators with the list open"/>
+      <option id="d-notify-desktop" title="Also a notification of the Meetlot desktop app"/>
+      <option id="d-notify-channel" title="Also an external channel (mail, Telegram)"/>
+    </decision>
+    <decision id="d-requests-store" status="open">
+      <question>Where are the requests kept? In memory they are lost at an update of the pod.</question>
+      <option id="d-requests-memory" title="In the application instance, part of the update snapshot"/>
+      <option id="d-requests-db" title="In a database table, with history"/>
+    </decision>
+    <decision id="d-team-menu" status="open">
+      <question>Does GenroApp keep the "Riunioni di team" item that opens /call?</question>
+      <option id="d-team-remove" title="Remove it: full meetings belong to the Meetlot app"/>
+      <option id="d-team-keep" title="Keep it as a plain web window, without control"/>
+    </decision>
+  </decisions>
+
+  <consequences>
+    <list>
+      <item>Remote control and its consent rules exist once, for both apps.</item>
+      <item>A change to the native input reaches GenroApp with a tag update.</item>
+      <item>Any Softwell macOS app is signed and notarized with the same scripts and the team key.</item>
+      <item>Notarization no longer depends on one person's Apple ID once the team API key exists.</item>
+      <item>gramlot-webrtc gains a participant limit; kajenn-webrtc gains the /support page and the request list.</item>
+      <item>GenroApp needs Accessibility and Screen Recording permissions on the customer's Mac, asked at the first assistance.</item>
+      <item>Windows and Linux need their own native input code; this proposal covers macOS.</item>
+    </list>
+  </consequences>
+
+  <related>
+    <doc id="proposal/device-sidecar" type="proposal">Local devices through a Python sidecar</doc>
+    <doc id="booklet/genropy-runner" type="booklet">GenroApp: a desktop window with card signing</doc>
+  </related>
+</proposal>

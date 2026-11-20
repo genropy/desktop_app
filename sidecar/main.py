@@ -1,4 +1,4 @@
-"""Python sidecar of GenroPy Runner.
+"""Python sidecar of GenroApp.
 
 The shell starts this process and talks to it with one JSON object per line:
 requests on stdin, answers and events on stdout, log on stderr.

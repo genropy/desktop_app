@@ -1,11 +1,11 @@
 <!-- generated from genropy-runner.xml by xmldocs: do not edit, edit the XML -->
 
-## GenroPy Runner: a desktop window with card signing
+## GenroApp: a desktop window with card signing
 *Instruction booklet · booklet/genropy-runner · 2026-11-04*
 
 ### Purpose
 
-How to build, configure and use GenroPy Runner: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.
+How to build, configure and use GenroApp: a Tauri 2 desktop app that loads one GenroPy instance in a window without address bar or tabs, and lets the GenroPy page sign with a smart card through PKCS#11.
 
 Other local devices go through a Python sidecar started by the runner; the first module, `inbox`, hands documents dropped in a Finder folder to a GenroPy page.
 
@@ -200,8 +200,8 @@ cargo tauri build --config tauri.bundle.json
 
 | File | Size |
 |---|---|
-| `target/release/bundle/macos/GenroPy Runner.app` | 21 MB, of which the sidecar 10.3 MB |
-| `target/release/bundle/dmg/GenroPy Runner_0.1.0_aarch64.dmg` | 3.82 MiB |
+| `target/release/bundle/macos/GenroApp.app` | 21 MB, of which the sidecar 10.3 MB |
+| `target/release/bundle/dmg/GenroApp_0.1.0_aarch64.dmg` | 3.82 MiB |
 
 The `.app` starts with a double click. Mac Intel needs a universal build:
 

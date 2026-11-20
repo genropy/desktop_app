@@ -1,25 +1,26 @@
-# GenroPy Runner
+# GenroApp
 
 A Tauri 2 desktop window that loads one GenroPy instance with no browser chrome
 (no address bar, no tabs).
 
-## Instance URL
+**Assistenza → Apri Meetlot** opens the support call in a separate window. Selecting it again brings the current call to the front.
 
-The URL is resolved at startup in this order:
+## Open a RunDoc
 
-1. `--url <address>` on the command line (that launch only).
-2. `url` in `config.json` inside the app config directory:
-   - macOS: `~/Library/Application Support/it.softwell.genropy.runner/config.json`
-   - Windows: `%APPDATA%\it.softwell.genropy.runner\config.json`
-   - Linux: `~/.config/it.softwell.genropy.runner/config.json`
-3. Neither present: a local setup page asks for the URL and saves it to `config.json`.
+On macOS, opening GenroApp by itself presents the native RunDoc chooser. Cancel leaves the app running without a document window. Use **Apri RunDoc…** to bring the chooser back. Double-click a signed document or drop it onto the application icon in Finder or the Dock to open its window directly. Each application has one window. The runner also accepts legacy signed `.softwell` files. Explicit `--url <address>` is available for development.
 
-The menu **Instance → Change URL…** (`Cmd/Ctrl+Shift+U`) reopens the setup page.
-**Instance → Reload** (`Cmd/Ctrl+R`) reloads the GenroPy page.
+## Issuing signed connections
 
-```json
-{ "url": "https://example.com/app" }
+Provision an Ed25519 signing key on the issuing service. Keep its private PEM outside the runner and repository. For a distribution build, set `SOFTWELL_LINK_PUBLIC_KEY` to the base64 encoding of its 32 raw public key bytes when running Cargo/Tauri. A build without this value rejects all connection files. Existing saved configurations continue to load.
+
+For example, with an Ed25519 key and OpenSSL 3:
+
+```sh
+export SOFTWELL_LINK_PUBLIC_KEY="$(openssl pkey -in issuer.pem -pubout -outform DER | tail -c 32 | openssl base64 -A)"
+python3 scripts/sign-connection.py --key issuer.pem --name "Studio Rossi" --url https://studio.example/app --output "Studio Rossi.softwell"
 ```
+
+The portal serves the resulting file as an attachment with MIME type `application/vnd.softwell.connection+json`. Its JSON envelope contains the base64-encoded payload and Ed25519 signature over the exact decoded payload bytes. Serve pre-issued files or issue from a trusted registry of application URLs.
 
 ## Python sidecar
 
@@ -78,7 +79,7 @@ Not ported from icond: library reload after sleep, detection of readers plugged 
 
 ## Security
 
-- The setup window can only read and save the URL (`capabilities/default.json`).
+- The setup window can only preview and activate signed connections (`capabilities/default.json`).
 - The PIN window can only answer the pending PIN request (`capabilities/pin.json`).
 - `card_list`, `card_sign`, `card_close` are granted at runtime to the origin of the configured URL,
   in the main window only. Any other origin loaded in the window gets no command.
@@ -95,7 +96,7 @@ Not ported from icond: library reload after sleep, detection of readers plugged 
 Run from `src-tauri/`:
 
 ```bash
-cargo tauri icon app-icon.svg       # regenerate icons/
+cargo tauri icon ../assets/genroapp/logo/genroapp.png       # regenerate icons/
 cargo tauri dev                     # run in development
 cargo tauri dev -- -- --url https://example.com/app
 cargo tauri build --config tauri.bundle.json   # .app / .dmg on macOS, .msi / .exe on Windows

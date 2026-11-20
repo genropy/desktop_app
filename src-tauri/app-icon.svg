@@ -1,4 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <rect x="64" y="64" width="896" height="896" rx="200" fill="#1f4e79"/>
-  <text x="512" y="660" font-family="Helvetica, Arial, sans-serif" font-size="480" font-weight="700" fill="#ffffff" text-anchor="middle">G</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256">
+  <title>GenroApp — lepre in corsa</title>
+  <rect x="8" y="8" width="240" height="240" rx="55" fill="#19283a"/>
+  <g id="runner">
+    <path fill="#ea9c59" d="M175 109c-17-14-31-37-40-65 22 11 44 32 57 58z"/>
+    <path fill="#ffcb7b" d="M183 112c-11-17-16-43-15-72 17 18 29 45 32 69z"/>
+    <path fill="#42b9b2" d="M48 156c-12 1-19-5-22-16 10 1 15-7 26-5 12-24 31-36 56-37 25-2 41 9 55 6 13-3 19-9 31-7 13 1 20 10 27 20l9 8c-4 9-15 13-31 12-10 17-24 31-42 38l36 11 18-3c-3 7-10 13-21 14l-57-10-18-18c-15 7-30 8-44 6l-26 16-26 1c6-9 15-12 23-14l20-22z"/>
+    <path fill="#93e1d3" d="M44 192c17-9 25-18 30-33 4-15 18-29 40-31-13 8-18 18-17 28 3 17-12 26-27 31l-21 10-24 1z"/>
+    <circle cx="204" cy="115" r="2.6" fill="#19283a"/>
+  </g>
 </svg>

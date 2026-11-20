@@ -1,6 +1,6 @@
 <!-- generated from signing-flow.xml by xmldocs: do not edit, edit the XML -->
 
-## Signing server PDFs with the GenroPy Runner
+## Signing server PDFs with the GenroApp
 *Proposal · proposal/signing-flow · 2026-11-04 · draft*
 
 ### Problem
@@ -25,7 +25,7 @@ Browser and agent never talk to each other: they meet only on the server. The se
 
 ### Proposed solution
 
-The GenroPy Runner replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.
+The GenroApp replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.
 
 #### Direct mode: the page runs inside the runner
 
@@ -129,5 +129,5 @@ The server side takes 32 bytes and receives a signature: it does not depend on t
 
 ### Related documents
 
-- `booklet/genropy-runner` (booklet) — GenroPy Runner: a desktop window with card signing
+- `booklet/genropy-runner` (booklet) — GenroApp: a desktop window with card signing
 - `proposal/device-sidecar` (proposal) — Local devices through a Python sidecar

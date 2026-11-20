@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<booklet id="booklet/manuale-icond-app" title="icond app: installazione e uso" date="2026-11-05" lang="it" author="Giovanni Porcari">
+  <purpose>
+    <p><b>icond app</b> è un'app per Mac che apre icond in una finestra propria, al posto del browser.</p>
+    <list>
+      <item>Si lavora come nel browser, con le stesse pagine e lo stesso utente.</item>
+      <item>Non c'è la barra di navigazione né le schede: la finestra mostra solo icond.</item>
+      <item>L'app può usare servizi del Mac che il browser non raggiunge, come il lettore di tessere per la firma digitale.</item>
+    </list>
+  </purpose>
+
+  <requires>
+    <list>
+      <item>Un Mac con processore Apple (M1 o successivo).</item>
+      <item>Il file <b>icond app.zip</b>, ricevuto dall'amministratore.</item>
+      <item>L'indirizzo di icond, il proprio utente e la password.</item>
+    </list>
+  </requires>
+
+  <step id="s-installa" title="Installare">
+    <list ordered="true">
+      <item>Fai doppio clic su <b>icond app.zip</b>: accanto compare <b>icond app</b>.</item>
+      <item>Trascina <b>icond app</b> nella cartella <b>Applicazioni</b>.</item>
+    </list>
+  </step>
+
+  <step id="s-sblocca" title="Sbloccare l'app la prima volta">
+    <p>Questa versione di prova non è ancora certificata da Apple. Al primo avvio macOS la blocca: va sbloccata una volta sola.</p>
+    <p>Il blocco dipende da come arriva il file: browser, Mail, Messaggi, AirDrop e Telegram lo marcano come scaricato. Copiata da una chiavetta USB, l'app si apre senza blocchi e questo passo non serve.</p>
+    <p><b>Metodo 1: da Impostazioni di Sistema.</b></p>
+    <list ordered="true">
+      <item>Sposta prima l'app in <b>Applicazioni</b>, come al passo precedente.</item>
+      <item>Fai doppio clic su <b>icond app</b>. macOS mostra un avviso e non la apre. Premi <b>Fine</b>: non scegliere <b>Sposta nel Cestino</b>.</item>
+      <item>Apri il menu Apple (la mela in alto a sinistra) → <b>Impostazioni di Sistema…</b> → <b>Privacy e sicurezza</b> nella colonna a sinistra.</item>
+      <item>Scorri fino alla sezione <b>Sicurezza</b>, in fondo alla pagina. Compare un messaggio che nomina <b>icond app</b>, con il pulsante <b>Apri comunque</b>: premilo.</item>
+      <item>Conferma con la password del Mac, o con Touch ID.</item>
+      <item>Si apre un ultimo avviso: premi <b>Apri comunque</b>. L'app parte.</item>
+      <item>Da qui in poi l'app si apre con un normale doppio clic, senza avvisi.</item>
+    </list>
+    <p>Il pulsante <b>Apri comunque</b> compare solo dopo un tentativo di apertura. Se non lo vedi, fai di nuovo doppio clic sull'app e torna in <b>Privacy e sicurezza</b>.</p>
+    <p><b>Metodo 2: da Terminale.</b> Serve quando il metodo 1 non mostra il pulsante, o quando macOS dice che l'app è danneggiata.</p>
+    <list ordered="true">
+      <item>Sposta l'app in <b>Applicazioni</b>.</item>
+      <item>Premi <b>Cmd+Spazio</b>, scrivi <b>Terminale</b> e premi Invio.</item>
+      <item>Copia questa riga, incollala nel Terminale e premi Invio:</item>
+    </list>
+    <code lang="bash"><![CDATA[xattr -dr com.apple.quarantine "/Applications/icond app.app"]]></code>
+    <list>
+      <item>Se il comando non scrive niente, ha funzionato. Chiudi il Terminale e apri l'app con un doppio clic.</item>
+      <item>Il comando toglie dall'app solo il marchio «scaricato da Internet». Non modifica l'app e non cambia le impostazioni di sicurezza del Mac.</item>
+    </list>
+  </step>
+
+  <step id="s-avvio" title="Primo avvio">
+    <list ordered="true">
+      <item>Si apre una piccola finestra <b>Instance URL</b>. Scrivi l'indirizzo di icond e premi <b>Open</b>.</item>
+      <item>Si apre icond. Entra con il tuo utente e la tua password.</item>
+    </list>
+    <p>L'indirizzo resta salvato: dalle volte successive l'app si apre direttamente su icond. Anche dimensione e posizione della finestra vengono ricordate.</p>
+  </step>
+
+  <step id="s-uso" title="Lavorare">
+    <p>Si lavora come nel browser. Il menu <b>Instance</b> ha due comandi:</p>
+    <table title="Comandi del menu Instance">
+      <row head="true"><cell>Comando</cell><cell>Tasti</cell><cell>Cosa fa</cell></row>
+      <row><cell>Reload</cell><cell>Cmd+R</cell><cell>Ricarica la pagina, come il tasto di aggiornamento del browser.</cell></row>
+      <row><cell>Change URL…</cell><cell>Cmd+Shift+U</cell><cell>Riapre la finestra dell'indirizzo, per passare a un'altra installazione di icond.</cell></row>
+    </table>
+    <p>Per chiudere l'app: <b>Cmd+Q</b>.</p>
+  </step>
+
+  <step id="s-firma" title="Firmare i documenti">
+    <p>Con la tessera di firma nel lettore si firmano i documenti dentro l'app: si individuano i documenti, si dà l'ordine di firmare e si scrive il PIN nella finestra dell'app. La guida <b>icond app: lavorare e firmare dal Mac</b> descrive i passi.</p>
+  </step>
+
+  <step id="s-problemi" title="Se qualcosa non va">
+    <table title="Problemi e rimedi">
+      <row head="true"><cell>Cosa succede</cell><cell>Cosa fare</cell></row>
+      <row><cell>macOS non apre l'app</cell><cell>Sbloccala come al passo «Sbloccare l'app la prima volta».</cell></row>
+      <row><cell>In Privacy e sicurezza non c'è <b>Apri comunque</b></cell><cell>Fai di nuovo doppio clic sull'app e torna nella pagina, oppure usa il metodo 2 da Terminale.</cell></row>
+      <row><cell>macOS dice che l'app è danneggiata e propone il Cestino</cell><cell>Non spostarla nel Cestino: usa il metodo 2 da Terminale.</cell></row>
+      <row><cell>Hai premuto <b>Sposta nel Cestino</b> per errore</cell><cell>Recupera l'app dal Cestino (clic destro → <b>Ripristina</b>) e ripeti lo sblocco.</cell></row>
+      <row><cell>L'app non parte su un Mac con processore Intel</cell><cell>Questa versione è solo per processori Apple. Chiedi all'amministratore la versione per Intel.</cell></row>
+      <row><cell>Hai sbagliato l'indirizzo</cell><cell>Menu <b>Instance → Change URL…</b> e scrivi quello giusto.</cell></row>
+      <row><cell>La pagina non risponde</cell><cell>Menu <b>Instance → Reload</b>.</cell></row>
+    </table>
+  </step>
+
+  <limits>
+    <limit>Versione di prova: non è certificata (notarizzata) da Apple, per questo va sbloccata al primo avvio.</limit>
+    <limit>Funziona solo sui Mac con processore Apple.</limit>
+    <limit>I menu e le finestre dell'app sono in inglese.</limit>
+  </limits>
+</booklet>

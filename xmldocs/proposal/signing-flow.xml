@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<proposal id="proposal/signing-flow" title="Signing server PDFs with the GenroPy Runner" date="2026-11-04" lang="en" author="Giovanni Porcari" status="draft">
+<proposal id="proposal/signing-flow" title="Signing server PDFs with the GenroApp" date="2026-11-04" lang="en" author="Giovanni Porcari" status="draft">
   <problem>
     <p>A GenroPy application produces PDFs on the server. A user must sign them with a qualified signature, using a smart card or a USB key on the user's own Mac or PC.</p>
     <list>
@@ -22,7 +22,7 @@
   </current>
 
   <solution>
-    <p>The GenroPy Runner replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.</p>
+    <p>The GenroApp replaces the agent and keeps the server side unchanged. It signs in two modes. Both send the card only 32 bytes and return only the signature; the PDF never leaves the server and the PIN never leaves the Mac.</p>
 
     <section title="Direct mode: the page runs inside the runner">
       <p>The page in the runner window calls the card commands itself. Authorization and signature become the same click, and the result is immediate.</p>
@@ -131,7 +131,7 @@ sequenceDiagram
   </consequences>
 
   <related>
-    <doc id="booklet/genropy-runner" type="booklet">GenroPy Runner: a desktop window with card signing</doc>
+    <doc id="booklet/genropy-runner" type="booklet">GenroApp: a desktop window with card signing</doc>
     <doc id="proposal/device-sidecar" type="proposal">Local devices through a Python sidecar</doc>
   </related>
 </proposal>

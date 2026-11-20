@@ -1,9 +1,14 @@
 mod card;
+mod connector;
+mod documents;
+use documents::{Document, Registry};
+#[cfg(target_os = "macos")]
+mod picker;
 mod sidecar;
 
 use std::collections::HashSet;
 use std::fs;
-use std::io::ErrorKind;
+use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime};
@@ -14,13 +19,14 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::CapabilityBuilder;
 use tauri::menu::{Menu, MenuItem, Submenu};
 use serde_json::Value;
-use tauri::{AppHandle, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{Emitter, AppHandle, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tokio::sync::oneshot;
 
 use card::{CardInfo, Cards, PinRequest};
 use sidecar::Sidecar;
 
-const MAIN: &str = "main";
+const SUPPORT: &str = "support";
+const MEETLOT: &str = "meetlot";
 const SETUP: &str = "setup";
 const PIN: &str = "pin";
 const SESSION_MINUTES: u64 = 240;
@@ -29,6 +35,9 @@ const SESSION_MINUTES: u64 = 240;
 #[derive(Default, Serialize, Deserialize)]
 struct Config {
     url: Option<String>,
+    document: Option<Document>,
+    #[serde(flatten)]
+    other: std::collections::BTreeMap<String, Value>,
     /// Paths of PKCS#11 libraries, tried before the default locations in `card.rs`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pkcs11_libraries: Vec<String>,
@@ -66,13 +75,6 @@ fn load_config(app: &AppHandle) -> Result<Config, String> {
     }
 }
 
-fn save_config(app: &AppHandle, config: &Config) -> Result<(), String> {
-    let path = config_path(app)?;
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-    let text = serde_json::to_string_pretty(config).map_err(|e| e.to_string())?;
-    fs::write(&path, text).map_err(|e| format!("{}: {e}", path.display()))
-}
-
 fn parse_url(text: &str) -> Result<Url, String> {
     let url = Url::parse(text.trim()).map_err(|e| format!("Invalid URL: {e}"))?;
     match url.scheme() {
@@ -94,45 +96,46 @@ fn cli_url() -> Option<String> {
 
 /// Grants the card commands to pages of the origin of `url` in the main window.
 /// A grant stays until the app exits, also after Change URL.
-fn grant_card_commands(app: &AppHandle, url: &Url) -> tauri::Result<()> {
+fn grant_card_commands(app: &AppHandle, url: &Url, label: &str) -> tauri::Result<()> {
     let origin = url.origin().ascii_serialization();
     let signer = app.state::<Signer>();
     let mut origins = signer.origins.lock().unwrap();
-    if origins.contains(&origin) {
+    if origins.contains(label) {
         return Ok(());
     }
     let capability = CapabilityBuilder::new(format!("card-{}", origins.len()))
         .remote(format!("{origin}/*"))
         .local(false)
-        .window(MAIN)
+        .window(label)
         .permission("allow-card-list")
         .permission("allow-card-sign")
         .permission("allow-card-close")
         .permission("allow-device-call")
         .permission("core:event:default");
     app.add_capability(capability)?;
-    origins.insert(origin);
+    origins.insert(label.into());
     Ok(())
 }
 
-/// Loads `url` in the main window, creating the window when it does not exist.
-fn show_instance(app: &AppHandle, url: Url) -> tauri::Result<()> {
-    grant_card_commands(app, &url)?;
-    let title = url.host_str().unwrap_or("GenroPy").to_string();
-    match app.get_webview_window(MAIN) {
-        Some(window) => {
-            window.navigate(url)?;
-            window.set_title(&title)?;
-            window.set_focus()?;
-        }
-        None => {
-            WebviewWindowBuilder::new(app, MAIN, WebviewUrl::External(url))
-                .title(title)
-                .inner_size(1280.0, 800.0)
-                .build()?;
-        }
+fn open_service(app: &AppHandle, label: &str, title: &str, url: Url) -> tauri::Result<()> {
+    if app.get_webview_window(label).is_some() {
+        return documents::focus(app, label);
     }
+    WebviewWindowBuilder::new(app, label, WebviewUrl::External(url))
+        .title(title).inner_size(1080.0, 760.0).build()?;
     Ok(())
+}
+
+fn refresh_menu(app: &AppHandle) -> tauri::Result<()> {
+    app.set_menu(build_menu(app)?)?;
+    Ok(())
+}
+
+fn choose_document(app: &AppHandle) -> tauri::Result<()> {
+    #[cfg(target_os = "macos")]
+    return picker::show(app);
+    #[cfg(not(target_os = "macos"))]
+    open_setup(app)
 }
 
 fn open_setup(app: &AppHandle) -> tauri::Result<()> {
@@ -140,26 +143,50 @@ fn open_setup(app: &AppHandle) -> tauri::Result<()> {
         return window.set_focus();
     }
     WebviewWindowBuilder::new(app, SETUP, WebviewUrl::App("index.html".into()))
-        .title("Instance URL")
-        .inner_size(520.0, 240.0)
-        .resizable(false)
+        .title("Configura il gestionale")
+        .inner_size(520.0, 380.0)
         .build()?;
     Ok(())
 }
 
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let menu = Menu::default(app)?;
-    let change_url = MenuItem::with_id(app, "change_url", "Change URL…", true, Some("CmdOrCtrl+Shift+U"))?;
+    let change_url = MenuItem::with_id(app, "change_url", "Apri RunDoc…", true, Some("CmdOrCtrl+Shift+U"))?;
     let reload = MenuItem::with_id(app, "reload", "Reload", true, Some("CmdOrCtrl+R"))?;
-    let instance = Submenu::with_items(app, "Instance", true, &[&change_url, &reload])?;
+    let (docs, active) = {
+        let state = app.state::<Registry>();
+        let windows = state.lock().unwrap();
+        (windows.open.clone(), windows.active.clone())
+    };
+    let current = active.as_ref().and_then(|id| docs.get(id));
+    let instance = Submenu::with_id_and_icon(app, "documents", current.map_or("Gestionali", |d| &d.name), true, current.and_then(Document::image))?;
+    for (label, doc) in docs {
+        let title = if Some(&label) == active.as_ref() { format!("✓ {}", doc.name) } else { doc.name.clone() };
+        instance.append(&tauri::menu::IconMenuItem::with_id(app, label, title, true, doc.image(), None::<&str>)?)?;
+    }
+    instance.append(&change_url)?;
+    instance.append(&reload)?;
     menu.append(&instance)?;
+    let team = MenuItem::with_id(app, "open_meetlot", "Riunioni di team", true, None::<&str>)?;
+    menu.append(&Submenu::with_items(app, "Meetlot", true, &[&team])?)?;
+    let support = MenuItem::with_id(app, "open_support", "Richiedi assistenza…", true, None::<&str>)?;
+    menu.append(&Submenu::with_items(app, "Assistenza", true, &[&support])?)?;
     Ok(menu)
 }
 
 fn on_menu(app: &AppHandle, id: &str) -> tauri::Result<()> {
     match id {
-        "change_url" => open_setup(app),
-        "reload" => match app.get_webview_window(MAIN) {
+        label if label.starts_with("doc-") => documents::focus(app, label),
+        "open_meetlot" => open_service(app, MEETLOT, "Meetlot", Url::parse("https://meetlot.genro.com/call").expect("valid team URL")),
+        "open_support" => {
+            let mut url = Url::parse("https://meetlot.genro.com/support").expect("valid support URL");
+            if let Some((_, doc)) = documents::active(app) {
+                url.query_pairs_mut().append_pair("app", &doc.name);
+            }
+            open_service(app, SUPPORT, "Assistenza", url)
+        }
+        "change_url" => choose_document(app),
+        "reload" => match documents::active(app).and_then(|(id, _)| app.get_webview_window(&id)) {
             Some(window) => window.eval("window.location.reload()"),
             None => Ok(()),
         },
@@ -227,18 +254,51 @@ fn pending_fingerprint(signer: &Signer) -> Result<String, String> {
 
 // ------------------------------------------------------------------ setup window
 
-#[tauri::command]
-async fn get_url(app: AppHandle) -> Result<Option<String>, String> {
-    Ok(load_config(&app)?.url)
+#[derive(Default)]
+struct PendingConnection(Mutex<Option<Result<String, String>>>);
+
+fn is_connection_file(path: &std::path::Path) -> bool {
+    path.extension().is_some_and(|ext| ext.eq_ignore_ascii_case("softwell") || ext.eq_ignore_ascii_case("rundoc"))
+}
+
+fn read_document(path: &std::path::Path) -> Result<Document, String> {
+    if !path.is_file() || !is_connection_file(path) {
+        return Err("Seleziona un RunDoc.".into());
+    }
+    let mut text = String::new();
+    fs::File::open(path).and_then(|f| f.take(connector::MAX_SIZE as u64 + 1).read_to_string(&mut text))
+        .map_err(|_| "Impossibile leggere il collegamento.")?;
+    let link = connector::verify(&text)?;
+    Ok(Document { name: link.name, url: link.url, icon: link.icon, id: link.id })
+}
+
+fn handle_document(app: &AppHandle, path: &std::path::Path) {
+    let result = read_document(path).and_then(|doc| documents::open(app, doc).map_err(|e| e.to_string()));
+    if let Err(error) = result {
+        *app.state::<PendingConnection>().0.lock().unwrap() = Some(Err(error));
+        if open_setup(app).is_ok() { let _ = app.emit_to(SETUP, "connection-opened", ()); }
+    } else if let Some(window) = app.get_webview_window(SETUP) {
+        let _ = window.close();
+    }
 }
 
 #[tauri::command]
-async fn save_url(app: AppHandle, url: String) -> Result<(), String> {
-    let target = parse_url(&url)?;
-    let mut config = load_config(&app)?;
-    config.url = Some(target.to_string());
-    save_config(&app, &config)?;
-    show_instance(&app, target).map_err(|e| e.to_string())?;
+fn pending_connection(state: State<'_, PendingConnection>) -> Result<Option<String>, String> {
+    state.0.lock().unwrap().clone().transpose()
+}
+
+#[tauri::command]
+fn inspect_connection(text: String) -> Result<connector::Connection, String> {
+    connector::verify(&text)
+}
+
+#[tauri::command]
+async fn activate_connection(app: AppHandle, text: String) -> Result<(), String> {
+    let link = connector::verify(&text)?;
+    let doc = Document { url: link.url, name: link.name, id: link.id, icon: link.icon };
+    documents::open(&app, doc).map_err(|e| e.to_string())?;
+    *app.state::<PendingConnection>().0.lock().unwrap() = None;
+
     if let Some(window) = app.get_webview_window(SETUP) {
         window.close().map_err(|e| e.to_string())?;
     }
@@ -307,16 +367,21 @@ async fn device_call(
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(target_os = "macos")]
+    let mut initial_picker = true;
     tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_denylist(&[SETUP, PIN])
                 .build(),
         )
+        .manage(PendingConnection::default())
+        .manage(Registry::default())
         .manage(Signer::default())
         .invoke_handler(tauri::generate_handler![
-            get_url,
-            save_url,
+            pending_connection,
+            inspect_connection,
+            activate_connection,
             pin_request,
             pin_submit,
             pin_cancel,
@@ -326,6 +391,31 @@ pub fn run() {
             device_call
         ])
         .on_window_event(|window, event| {
+            if let WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                if window.label() == SETUP || window.label().starts_with("doc-") {
+                    for path in paths.iter().filter(|path| is_connection_file(path)) {
+                        handle_document(window.app_handle(), path);
+                    }
+                }
+            }
+            if window.label().starts_with("doc-") {
+                let registry = window.state::<Registry>();
+                let mut docs = registry.lock().unwrap();
+                let changed = match event {
+                    WindowEvent::Focused(true) if docs.open.contains_key(window.label()) => {
+                        docs.active = Some(window.label().into());
+                        true
+                    }
+                    WindowEvent::Destroyed => {
+                        docs.open.remove(window.label());
+                        if docs.active.as_deref() == Some(window.label()) { docs.active = docs.open.keys().next().cloned(); }
+                        true
+                    }
+                    _ => false,
+                };
+                drop(docs);
+                if changed { let _ = refresh_menu(window.app_handle()); }
+            }
             // Closing the PIN window with its close button cancels the request.
             if window.label() == PIN && matches!(event, WindowEvent::Destroyed) {
                 if let Some(pending) = window.state::<Signer>().pending.lock().unwrap().take() {
@@ -335,7 +425,7 @@ pub fn run() {
         })
         .setup(|app| {
             let handle = app.handle();
-            let sidecar = Sidecar::start(handle.clone(), MAIN, &config_path(handle)?)?;
+            let sidecar = Sidecar::start(handle.clone(), &config_path(handle)?)?;
             handle.manage(sidecar);
             handle.set_menu(build_menu(handle)?)?;
             handle.on_menu_event(|app, event| {
@@ -343,20 +433,43 @@ pub fn run() {
                     eprintln!("menu {}: {e}", event.id().as_ref());
                 }
             });
-            // Precedence: --url, then config.json, then the setup page.
-            let url = match cli_url() {
-                Some(text) => Some(text),
-                None => load_config(handle)?.url,
-            };
-            match url {
-                Some(text) => show_instance(handle, parse_url(&text)?)?,
-                None => open_setup(handle)?,
+            #[cfg(not(target_os = "macos"))]
+            if let Some(path) = std::env::args_os().nth(1).map(PathBuf::from)
+                .filter(|p| p.extension().is_some_and(|e| e.eq_ignore_ascii_case("softwell") || e.eq_ignore_ascii_case("rundoc"))) {
+                handle_document(handle, &path);
+                return Ok(());
+            }
+            if let Some(url) = cli_url() {
+                documents::open(handle, Document::from_url(&parse_url(&url)?))?;
+            } else {
+                #[cfg(not(target_os = "macos"))]
+                choose_document(handle)?;
             }
             Ok(())
         })
         .build(tauri::generate_context!())
         .expect("error while building the application")
-        .run(|app, event| {
+        .run(move |app, event| {
+            #[cfg(target_os = "macos")]
+            match &event {
+                RunEvent::Opened { urls } => {
+                    initial_picker = false;
+                    picker::dismiss();
+                    for path in urls.iter().filter_map(|url| url.to_file_path().ok()) {
+                        handle_document(app, &path);
+                    }
+                }
+                RunEvent::MainEventsCleared if initial_picker => {
+                    initial_picker = false;
+                    if app.webview_windows().is_empty() { let _ = choose_document(app); }
+                }
+                RunEvent::Reopen { has_visible_windows: false, .. } if app.webview_windows().is_empty() => {
+                    initial_picker = false;
+                    let _ = choose_document(app);
+                }
+                RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
+                _ => (),
+            }
             if let RunEvent::Exit = event {
                 app.state::<Sidecar>().stop();
             }
