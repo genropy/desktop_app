@@ -71,7 +71,7 @@ cargo build
       <item><c>url</c> in <c>config.json</c>, in the app config directory: <c>~/Library/Application Support/it.softwell.genropy.runner/</c> on macOS, <c>%APPDATA%\it.softwell.genropy.runner\</c> on Windows.</item>
       <item>Neither: the setup window asks for the URL and saves it in <c>config.json</c>.</item>
     </list>
-    <p>The menu <b>Instance → Change URL…</b> (<c>Cmd/Ctrl+Shift+U</c>) reopens the setup window. <b>Instance → Reload</b> (<c>Cmd/Ctrl+R</c>) reloads the page. Only <c>http</c> and <c>https</c> URLs are accepted.</p>
+    <p>The menu <b>Finestre → Apri RunDoc…</b> (<c>Cmd/Ctrl+Shift+U</c>) opens the RunDoc chooser. <b>Finestre → Apri istanza locale…</b> (<c>Cmd/Ctrl+Shift+L</c>) opens <c>http://localhost:&lt;port&gt;/</c> from a port only. <b>Finestre → Ricarica</b> (<c>Cmd/Ctrl+R</c>) reloads the page. Only <c>http</c> and <c>https</c> URLs are accepted.</p>
     <code lang="json" file="config.json"><![CDATA[
 {
   "url": "https://example.com/app",
@@ -234,7 +234,7 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
   </limits>
 
   <facts>
-    <fact source="src-tauri/src/lib.rs:82" method="run" verified="2026-11-03">With <c>--url https://example.com</c> the window opens on that page, without address bar, with the host as title and the Instance menu.</fact>
+    <fact source="src-tauri/src/lib.rs:82" method="run" verified="2026-11-03">With <c>--url https://example.com</c> the window opens on that page, without address bar, with the host as title and the Finestre menu.</fact>
     <fact source="src-tauri/src/lib.rs:57" method="run" verified="2026-11-03">Without <c>--url</c> and without <c>config.json</c> the setup window opens.</fact>
     <fact source="src-tauri/src/lib.rs:94" method="run" verified="2026-11-03">The card commands answer the configured origin and are refused to another origin in the same window.</fact>
     <fact source="src-tauri/capabilities/default.json" method="run" verified="2026-11-03">The GenroPy page cannot call <c>get_url</c> nor <c>pin_submit</c>.</fact>

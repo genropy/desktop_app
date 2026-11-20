@@ -22,7 +22,7 @@
 macos/build-developer-id.sh
 ]]></code>
     <p>The script builds <c>GenroApp.app</c> for <c>universal-apple-darwin</c> with <c>--no-default-features</c>. It reads <c>SOFTWELL_LINK_PUBLIC_KEY</c> from the environment, or from <c>~/.tauri/genroapp-link.pub.b64</c> when the variable is not set. A build without this key rejects every connection file.</p>
-    <p>The app is signed with the hardened runtime, a secure timestamp and two entitlements: <c>com.apple.security.device.camera</c> and <c>com.apple.security.device.audio-input</c>. The Meetlot windows of the menus Meetlot and Assistenza use them. No provisioning profile is embedded.</p>
+    <p>The app is signed with the hardened runtime, a secure timestamp and two entitlements: <c>com.apple.security.device.camera</c> and <c>com.apple.security.device.audio-input</c>. No window of the app uses them since the menus Meetlot and Assistenza were removed. No provisioning profile is embedded.</p>
     <p>The app is at <c>src-tauri/target/universal-apple-darwin/release/bundle/macos/GenroApp.app</c>.</p>
   </step>
   <step id="s-release" title="Release: notarize, disk image, updater archive">

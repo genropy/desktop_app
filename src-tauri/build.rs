@@ -6,6 +6,7 @@ fn main() {
         "pending_connection",
         "inspect_connection",
         "activate_connection",
+        "open_local",
         "pin_request",
         "pin_submit",
         "pin_cancel",

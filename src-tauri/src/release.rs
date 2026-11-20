@@ -7,7 +7,7 @@
 use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::menu::{Menu, MenuItem, MenuItemKind};
+use tauri::menu::{MenuItem, PredefinedMenuItem, Submenu};
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
@@ -78,22 +78,25 @@ pub fn install(app: &AppHandle) {
     });
 }
 
-/// The first menu: its first item opens the About window of GenroApp instead of the standard panel, and a pending
-/// release adds "Aggiorna a <version> e riavvia" below it.
-pub fn app_menu(menu: &Menu<tauri::Wry>, app: &AppHandle) -> tauri::Result<()> {
-    let Some(MenuItemKind::Submenu(app_menu)) = menu.items()?.into_iter().next() else {
-        return Ok(());
-    };
-    if let Some(MenuItemKind::Predefined(standard)) = app_menu.items()?.into_iter().next() {
-        if standard.text()?.starts_with("About") {
-            app_menu.remove(&standard)?;
-        }
-    }
+/// The GenroApp menu: About GenroApp opens its own window instead of the standard panel, and a pending release adds
+/// "Aggiorna a <version> e riavvia" below it.
+pub fn app_menu(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
+    let name = app.package_info().name.clone();
+    let menu = Submenu::with_items(app, &name, true, &[
+        &MenuItem::with_id(app, "about", format!("Informazioni su {name}"), true, None::<&str>)?,
+    ])?;
     if let Some(version) = pending_version(app) {
         let title = format!("Aggiorna a {version} e riavvia");
-        app_menu.prepend(&MenuItem::with_id(app, "install_update", title, true, None::<&str>)?)?;
+        menu.append(&MenuItem::with_id(app, "install_update", title, true, None::<&str>)?)?;
     }
-    app_menu.prepend(&MenuItem::with_id(app, "about", "Informazioni su GenroApp", true, None::<&str>)?)
+    menu.append_items(&[
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::hide(app, Some(&format!("Nascondi {name}")))?,
+        &PredefinedMenuItem::hide_others(app, Some("Nascondi altre"))?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::quit(app, Some(&format!("Esci da {name}")))?,
+    ])?;
+    Ok(menu)
 }
 
 /// About GenroApp: the version, what GenroApp is made with and the copyright. Its page is part of the app

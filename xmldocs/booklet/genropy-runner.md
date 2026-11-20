@@ -80,7 +80,7 @@ At startup the URL is taken from the first source that has one:
 2. `url` in `config.json`, in the app config directory: `~/Library/Application Support/it.softwell.genropy.runner/` on macOS, `%APPDATA%\it.softwell.genropy.runner\` on Windows.
 3. Neither: the setup window asks for the URL and saves it in `config.json`.
 
-The menu **Instance → Change URL…** (`Cmd/Ctrl+Shift+U`) reopens the setup window. **Instance → Reload** (`Cmd/Ctrl+R`) reloads the page. Only `http` and `https` URLs are accepted.
+The menu **Finestre → Apri RunDoc…** (`Cmd/Ctrl+Shift+U`) opens the RunDoc chooser. **Finestre → Apri istanza locale…** (`Cmd/Ctrl+Shift+L`) opens `http://localhost:<port>/` from a port only. **Finestre → Ricarica** (`Cmd/Ctrl+R`) reloads the page. Only `http` and `https` URLs are accepted.
 
 `config.json`
 ```json
@@ -256,7 +256,7 @@ python3 -m http.server 8765 --bind 127.0.0.1   # in the folder with test.html
 
 ### Verified facts
 
-- `RUN` `src-tauri/src/lib.rs:82` · 2026-11-03 — With `--url https://example.com` the window opens on that page, without address bar, with the host as title and the Instance menu.
+- `RUN` `src-tauri/src/lib.rs:82` · 2026-11-03 — With `--url https://example.com` the window opens on that page, without address bar, with the host as title and the Finestre menu.
 - `RUN` `src-tauri/src/lib.rs:57` · 2026-11-03 — Without `--url` and without `config.json` the setup window opens.
 - `RUN` `src-tauri/src/lib.rs:94` · 2026-11-03 — The card commands answer the configured origin and are refused to another origin in the same window.
 - `RUN` `src-tauri/capabilities/default.json` · 2026-11-03 — The GenroPy page cannot call `get_url` nor `pin_submit`.

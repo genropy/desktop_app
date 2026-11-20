@@ -4,6 +4,7 @@ mod connector;
 #[cfg(feature = "devices")]
 mod devices;
 mod documents;
+mod local;
 use documents::{Document, Registry};
 #[cfg(target_os = "macos")]
 mod picker;
@@ -21,13 +22,11 @@ use std::sync::Mutex;
 
 #[cfg(feature = "devices")]
 use serde::{Deserialize, Serialize};
-use tauri::menu::{Menu, MenuItem, Submenu};
+use tauri::menu::{IconMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 #[cfg(feature = "devices")]
 use serde_json::Value;
 use tauri::{Emitter, AppHandle, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
-const SUPPORT: &str = "support";
-const MEETLOT: &str = "meetlot";
 const SETUP: &str = "setup";
 const PIN: &str = "pin";
 
@@ -82,15 +81,6 @@ fn cli_url() -> Option<String> {
     None
 }
 
-fn open_service(app: &AppHandle, label: &str, title: &str, url: Url) -> tauri::Result<()> {
-    if app.get_webview_window(label).is_some() {
-        return documents::focus(app, label);
-    }
-    WebviewWindowBuilder::new(app, label, WebviewUrl::External(url))
-        .title(title).inner_size(1080.0, 760.0).build()?;
-    Ok(())
-}
-
 fn refresh_menu(app: &AppHandle) -> tauri::Result<()> {
     app.set_menu(build_menu(app)?)?;
     Ok(())
@@ -114,49 +104,64 @@ fn open_setup(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+fn open_local_window(app: &AppHandle) -> tauri::Result<()> {
+    if let Some(window) = app.get_webview_window(local::WINDOW) {
+        return window.set_focus();
+    }
+    WebviewWindowBuilder::new(app, local::WINDOW, WebviewUrl::App("local.html".into()))
+        .title("Apri istanza locale")
+        .inner_size(380.0, 190.0)
+        .resizable(false)
+        .build()?;
+    Ok(())
+}
+
+/// The menu bar: GenroApp, Modifica (the shortcuts of the page need it) and Finestre.
 fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
-    let menu = Menu::default(app)?;
-    release::app_menu(&menu, app)?;
-    let change_url = MenuItem::with_id(app, "change_url", "Apri RunDoc…", true, Some("CmdOrCtrl+Shift+U"))?;
-    let reload = MenuItem::with_id(app, "reload", "Reload", true, Some("CmdOrCtrl+R"))?;
+    let edit = Submenu::with_items(app, "Modifica", true, &[
+        &PredefinedMenuItem::undo(app, Some("Annulla"))?,
+        &PredefinedMenuItem::redo(app, Some("Ripeti"))?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::cut(app, Some("Taglia"))?,
+        &PredefinedMenuItem::copy(app, Some("Copia"))?,
+        &PredefinedMenuItem::paste(app, Some("Incolla"))?,
+        &PredefinedMenuItem::select_all(app, Some("Seleziona tutto"))?,
+    ])?;
+    let windows = Submenu::with_id(app, "documents", "Finestre", true)?;
     let (docs, active) = {
         let state = app.state::<Registry>();
-        let windows = state.lock().unwrap();
-        (windows.open.clone(), windows.active.clone())
+        let registry = state.lock().unwrap();
+        (registry.open.clone(), registry.active.clone())
     };
-    let current = active.as_ref().and_then(|id| docs.get(id));
-    let instance = Submenu::with_id_and_icon(app, "documents", current.map_or("Gestionali", |d| &d.name), true, current.and_then(Document::image))?;
+    let has_docs = !docs.is_empty();
     for (label, doc) in docs {
         let title = if Some(&label) == active.as_ref() { format!("✓ {}", doc.name) } else { doc.name.clone() };
-        instance.append(&tauri::menu::IconMenuItem::with_id(app, label, title, true, doc.image(), None::<&str>)?)?;
+        windows.append(&IconMenuItem::with_id(app, label, title, true, doc.image(), None::<&str>)?)?;
     }
-    instance.append(&change_url)?;
-    instance.append(&reload)?;
-    menu.append(&instance)?;
-    let team = MenuItem::with_id(app, "open_meetlot", "Riunioni di team", true, None::<&str>)?;
-    menu.append(&Submenu::with_items(app, "Meetlot", true, &[&team])?)?;
-    let support = MenuItem::with_id(app, "open_support", "Richiedi assistenza…", true, None::<&str>)?;
-    menu.append(&Submenu::with_items(app, "Assistenza", true, &[&support])?)?;
-    Ok(menu)
+    if has_docs {
+        windows.append(&PredefinedMenuItem::separator(app)?)?;
+    }
+    windows.append_items(&[
+        &MenuItem::with_id(app, "change_url", "Apri RunDoc…", true, Some("CmdOrCtrl+Shift+U"))?,
+        &MenuItem::with_id(app, "open_local", "Apri istanza locale…", true, Some("CmdOrCtrl+Shift+L"))?,
+        &MenuItem::with_id(app, "reload", "Ricarica", true, Some("CmdOrCtrl+R"))?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::minimize(app, Some("Riduci a icona"))?,
+        &PredefinedMenuItem::close_window(app, Some("Chiudi finestra"))?,
+    ])?;
+    Menu::with_items(app, &[&release::app_menu(app)?, &edit, &windows])
 }
 
 fn on_menu(app: &AppHandle, id: &str) -> tauri::Result<()> {
     match id {
         label if label.starts_with("doc-") => documents::focus(app, label),
-        "open_meetlot" => open_service(app, MEETLOT, "Meetlot", Url::parse("https://meetlot.genro.com/call").expect("valid team URL")),
-        "open_support" => {
-            let mut url = Url::parse("https://meetlot.genro.com/support").expect("valid support URL");
-            if let Some((_, doc)) = documents::active(app) {
-                url.query_pairs_mut().append_pair("app", &doc.name);
-            }
-            open_service(app, SUPPORT, "Assistenza", url)
-        }
         "about" => release::open_about(app),
         "install_update" => {
             release::install(app);
             Ok(())
         }
         "change_url" => choose_document(app),
+        "open_local" => open_local_window(app),
         "reload" => match documents::active(app).and_then(|(id, _)| app.get_webview_window(&id)) {
             Some(window) => window.eval("window.location.reload()"),
             None => Ok(()),
@@ -218,6 +223,15 @@ async fn activate_connection(app: AppHandle, text: String) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+async fn open_local(app: AppHandle, port: u16) -> Result<(), String> {
+    documents::open(&app, local::document(port)?).map_err(|e| e.to_string())?;
+    if let Some(window) = app.get_webview_window(local::WINDOW) {
+        window.close().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(target_os = "macos")]
@@ -225,7 +239,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_denylist(&[SETUP, PIN])
+                .with_denylist(&[SETUP, PIN, local::WINDOW])
                 .build(),
         )
         .manage(PendingConnection::default())
@@ -235,6 +249,7 @@ pub fn run() {
             pending_connection,
             inspect_connection,
             activate_connection,
+            open_local,
             #[cfg(feature = "devices")]
             devices::pin_request,
             #[cfg(feature = "devices")]

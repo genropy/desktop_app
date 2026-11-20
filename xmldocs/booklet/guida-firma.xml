@@ -31,7 +31,7 @@
       <item>Apri <b>icond app</b> con un doppio clic, dalla cartella Applicazioni o dal Dock.</item>
       <item>Entra con il tuo utente e la tua password, come nel browser.</item>
     </list>
-    <p>Se la prima volta l'app chiede l'indirizzo di icond, lo fornisce l'amministratore. Il menu <b>Instance → Reload</b> ricarica la pagina.</p>
+    <p>Se la prima volta l'app chiede l'indirizzo di icond, lo fornisce l'amministratore. Il menu <b>Finestre → Ricarica</b> ricarica la pagina.</p>
   </step>
 
   <step id="s-tessera" title="Inserire la tessera">
@@ -62,7 +62,7 @@
       <row><cell>Il PIN viene rifiutato</cell><cell>Riprova con attenzione: ogni errore consuma un tentativo.</cell></row>
       <row><cell>L'app dice che la tessera segnala l'ultimo tentativo o il PIN bloccato</cell><cell>L'app non prova il PIN, per non bloccare la tessera. Rivolgiti all'amministratore: serve il PUK del fornitore.</cell></row>
       <row><cell>L'app dice che il PIN ha una lunghezza sbagliata</cell><cell>Il PIN non è stato provato e nessun tentativo è perso. Ricontrolla il PIN.</cell></row>
-      <row><cell>La pagina non risponde</cell><cell>Usa <b>Instance → Reload</b>.</cell></row>
+      <row><cell>La pagina non risponde</cell><cell>Usa <b>Finestre → Ricarica</b>.</cell></row>
     </table>
   </step>
 
@@ -75,7 +75,7 @@
   <limits>
     <limit>Bozza: descrive il funzionamento previsto. icond app con nome e logo di icond, e il comando di firma nelle pagine di icond, sono da realizzare.</limit>
     <limit>La firma funziona solo dentro icond app. Dal browser (Safari, Chrome) non è disponibile.</limit>
-    <limit>La finestra del PIN e i menu dell'app sono in inglese.</limit>
+    <limit>La finestra del PIN è in inglese.</limit>
   </limits>
 
   <related>

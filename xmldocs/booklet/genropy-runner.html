@@ -128,7 +128,7 @@ cargo build
       <li><code>url</code> in <code>config.json</code>, in the app config directory: <code>~/Library/Application Support/it.softwell.genropy.runner/</code> on macOS, <code>%APPDATA%\it.softwell.genropy.runner\</code> on Windows.</li>
       <li>Neither: the setup window asks for the URL and saves it in <code>config.json</code>.</li>
     </ol>
-    <p>The menu <b>Instance → Change URL…</b> (<code>Cmd/Ctrl+Shift+U</code>) reopens the setup window. <b>Instance → Reload</b> (<code>Cmd/Ctrl+R</code>) reloads the page. Only <code>http</code> and <code>https</code> URLs are accepted.</p>
+    <p>The menu <b>Finestre → Apri RunDoc…</b> (<code>Cmd/Ctrl+Shift+U</code>) opens the RunDoc chooser. <b>Finestre → Apri istanza locale…</b> (<code>Cmd/Ctrl+Shift+L</code>) opens <code>http://localhost:&lt;port&gt;/</code> from a port only. <b>Finestre → Ricarica</b> (<code>Cmd/Ctrl+R</code>) reloads the page. Only <code>http</code> and <code>https</code> URLs are accepted.</p>
     <figure class="code"><figcaption>config.json · json</figcaption><pre><code>{
   "url": "https://example.com/app",
   "pkcs11_libraries": ["/Library/bit4id/pkcs11/libbit4xpki.dylib"],
@@ -257,7 +257,7 @@ cargo tauri build --config tauri.bundle.json --target i686-pc-windows-msvc</code
     <div class="box limit"><div>Downloads and popups (<code>window.open</code>) from the GenroPy page are not tested.</div></div>
     <div class="box limit"><div>While a card is open, the page can ask signatures without a new PIN, as with the icond agent. There is no confirmation per signature.</div></div>
   </section><section class="part facts"><h2>Verified facts</h2>
-    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:82</code><span class="muted">2026-11-03</span></div><div>With <code>--url https://example.com</code> the window opens on that page, without address bar, with the host as title and the Instance menu.</div></div>
+    <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:82</code><span class="muted">2026-11-03</span></div><div>With <code>--url https://example.com</code> the window opens on that page, without address bar, with the host as title and the Finestre menu.</div></div>
     <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:57</code><span class="muted">2026-11-03</span></div><div>Without <code>--url</code> and without <code>config.json</code> the setup window opens.</div></div>
     <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/src/lib.rs:94</code><span class="muted">2026-11-03</span></div><div>The card commands answer the configured origin and are refused to another origin in the same window.</div></div>
     <div class="box fact"><div class="box-head"><span class="tag tag-run">run</span><code class="source">src-tauri/capabilities/default.json</code><span class="muted">2026-11-03</span></div><div>The GenroPy page cannot call <code>get_url</code> nor <code>pin_submit</code>.</div></div>

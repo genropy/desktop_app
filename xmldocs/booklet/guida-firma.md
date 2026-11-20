@@ -33,7 +33,7 @@ Il documento resta sempre sul server. Sul Mac arriva solo un codice di controllo
 1. Apri **icond app** con un doppio clic, dalla cartella Applicazioni o dal Dock.
 2. Entra con il tuo utente e la tua password, come nel browser.
 
-Se la prima volta l'app chiede l'indirizzo di icond, lo fornisce l'amministratore. Il menu **Instance → Reload** ricarica la pagina.
+Se la prima volta l'app chiede l'indirizzo di icond, lo fornisce l'amministratore. Il menu **Finestre → Ricarica** ricarica la pagina.
 
 #### 2. Inserire la tessera
 
@@ -66,7 +66,7 @@ Per chiudere la tessera prima, estraila dal lettore o chiudi l'app. Alla firma s
 | Il PIN viene rifiutato | Riprova con attenzione: ogni errore consuma un tentativo. |
 | L'app dice che la tessera segnala l'ultimo tentativo o il PIN bloccato | L'app non prova il PIN, per non bloccare la tessera. Rivolgiti all'amministratore: serve il PUK del fornitore. |
 | L'app dice che il PIN ha una lunghezza sbagliata | Il PIN non è stato provato e nessun tentativo è perso. Ricontrolla il PIN. |
-| La pagina non risponde | Usa **Instance → Reload**. |
+| La pagina non risponde | Usa **Finestre → Ricarica**. |
 
 ### Rules
 
@@ -78,7 +78,7 @@ Per chiudere la tessera prima, estraila dal lettore o chiudi l'app. Alla firma s
 
 - Bozza: descrive il funzionamento previsto. icond app con nome e logo di icond, e il comando di firma nelle pagine di icond, sono da realizzare.
 - La firma funziona solo dentro icond app. Dal browser (Safari, Chrome) non è disponibile.
-- La finestra del PIN e i menu dell'app sono in inglese.
+- La finestra del PIN è in inglese.
 
 ### Related documents
 

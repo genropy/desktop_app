@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "local",
+  "description": "The local page that opens a GenroPy instance on localhost by port.",
+  "windows": ["local"],
+  "permissions": ["core:default", "allow-open-local"]
+}

@@ -3,11 +3,15 @@
 A Tauri 2 desktop window that loads one GenroPy instance with no browser chrome
 (no address bar, no tabs).
 
-**Assistenza → Apri Meetlot** opens the support call in a separate window. Selecting it again brings the current call to the front.
+The menu bar has three menus: **GenroApp**, **Modifica** and **Finestre**. **Finestre** lists the open applications, then **Apri RunDoc…**, **Apri istanza locale…**, **Ricarica**, **Riduci a icona** and **Chiudi finestra**.
 
 ## Open a RunDoc
 
 On macOS, opening GenroApp by itself presents the native RunDoc chooser. Cancel leaves the app running without a document window. Use **Apri RunDoc…** to bring the chooser back. Double-click a signed document or drop it onto the application icon in Finder or the Dock to open its window directly. Each application has one window. The runner also accepts legacy signed `.softwell` files. Explicit `--url <address>` is available for development.
+
+## Open a local instance
+
+**Finestre → Apri istanza locale…** (`Cmd+Shift+L`) asks only for a port and opens `http://localhost:<port>/` without a RunDoc. The host and the path are fixed by the app. The window remembers the last port. A localhost window does not receive the card commands.
 
 ## Issuing signed connections
 

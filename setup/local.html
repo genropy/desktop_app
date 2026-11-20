@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Apri istanza locale</title>
+  <link rel="stylesheet" href="setup.css">
+  <script src="local.js" defer></script>
+</head>
+<body>
+  <form id="form">
+    <label for="port">Porta dell'istanza su localhost</label>
+    <input id="port" type="number" min="1" max="65535" step="1" required autofocus>
+    <p id="error"></p>
+    <button type="submit" id="open">Apri</button>
+  </form>
+</body>
+</html>
