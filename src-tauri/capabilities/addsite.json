@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "addsite",
+  "description": "The local window that adds a site by address. The device commands for the site pages are granted at runtime to the saved origins only.",
+  "windows": ["addsite"],
+  "permissions": ["core:default", "allow-add-site", "allow-site-error"]
+}

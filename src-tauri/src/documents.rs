@@ -68,6 +68,9 @@ pub fn open(app: &AppHandle, doc: Document) -> tauri::Result<()> {
     if !super::local::is_local(&url) {
         super::devices::grant_card_commands(app, &url, &label)?;
     }
+    if matches!(super::sites::find(app, &url.origin().ascii_serialization()), Ok(Some(_))) {
+        super::device_login::grant(app, &url, &label)?;
+    }
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title(&doc.name)
         .inner_size(1280.0, 800.0)

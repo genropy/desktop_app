@@ -43,6 +43,9 @@
     ],
     "resources": {
       "icons/softwell-link.icns": "softwell-link.icns"
+    },
+    "macOS": {
+      "entitlements": "GenroApp.entitlements"
     }
   },
   "plugins": {

@@ -3,4 +3,6 @@
 <plist version="1.0"><dict>
   <key>com.apple.developer.associated-domains</key>
   <array><string>webcredentials:auth.gpkube.genro.dev</string></array>
+  <key>keychain-access-groups</key>
+  <array><string>HXS58UUB2N.it.softwell.genropy.runner</string></array>
 </dict></plist>

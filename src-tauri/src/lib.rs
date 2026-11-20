@@ -1,6 +1,8 @@
 #[cfg(feature = "devices")]
 mod card;
 mod connector;
+mod device_key;
+mod device_login;
 #[cfg(feature = "devices")]
 mod devices;
 mod documents;
@@ -11,6 +13,7 @@ mod picker;
 mod release;
 #[cfg(feature = "devices")]
 mod sidecar;
+mod sites;
 
 use std::fs;
 use std::io::Read;
@@ -93,6 +96,11 @@ fn choose_document(app: &AppHandle) -> tauri::Result<()> {
     open_setup(app)
 }
 
+/// The window shown when GenroApp has none open: see `sites::start`.
+fn first_window(app: &AppHandle) -> tauri::Result<()> {
+    sites::open_start(app)
+}
+
 fn open_setup(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window(SETUP) {
         return window.set_focus();
@@ -138,10 +146,35 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         let title = if Some(&label) == active.as_ref() { format!("✓ {}", doc.name) } else { doc.name.clone() };
         windows.append(&IconMenuItem::with_id(app, label, title, true, doc.image(), None::<&str>)?)?;
     }
-    if has_docs {
+    let open_origins: Vec<String> = docs_origins(app);
+    let saved: Vec<sites::Site> = sites::load(app)
+        .unwrap_or_else(|e| {
+            eprintln!("sites: {e}");
+            Vec::new()
+        })
+        .into_iter()
+        .filter(|site| !open_origins.contains(&site.origin()))
+        .collect();
+    for site in &saved {
+        let id = format!("site:{}", site.origin());
+        windows.append(&IconMenuItem::with_id(app, id, &site.name, true, site.document().image(), None::<&str>)?)?;
+    }
+    if has_docs || !saved.is_empty() {
         windows.append(&PredefinedMenuItem::separator(app)?)?;
     }
+    let active_site = active.as_ref()
+        .and_then(|label| docs_by_label(app, label))
+        .and_then(|origin| sites::find(app, &origin).ok().flatten());
+    if let Some(site) = active_site {
+        let title = if site.primary {
+            format!("Togli «{}» come sito primario", site.name)
+        } else {
+            format!("Imposta «{}» come sito primario", site.name)
+        };
+        windows.append(&MenuItem::with_id(app, format!("primary:{}", site.origin()), title, true, None::<&str>)?)?;
+    }
     windows.append_items(&[
+        &MenuItem::with_id(app, "add_site", "Aggiungi sito…", true, None::<&str>)?,
         &MenuItem::with_id(app, "change_url", "Apri RunDoc…", true, Some("CmdOrCtrl+Shift+U"))?,
         &MenuItem::with_id(app, "open_local", "Apri istanza locale…", true, Some("CmdOrCtrl+Shift+L"))?,
         &MenuItem::with_id(app, "reload", "Ricarica", true, Some("CmdOrCtrl+R"))?,
@@ -152,9 +185,40 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     Menu::with_items(app, &[&release::app_menu(app)?, &edit, &windows])
 }
 
+/// The origin of the document window `label`.
+fn docs_by_label(app: &AppHandle, label: &str) -> Option<String> {
+    let state = app.state::<Registry>();
+    let registry = state.lock().unwrap();
+    let url = Url::parse(&registry.open.get(label)?.url).ok()?;
+    Some(url.origin().ascii_serialization())
+}
+
+/// The origins of the open document windows.
+fn docs_origins(app: &AppHandle) -> Vec<String> {
+    let state = app.state::<Registry>();
+    let registry = state.lock().unwrap();
+    registry
+        .open
+        .values()
+        .filter_map(|doc| Url::parse(&doc.url).ok())
+        .map(|url| url.origin().ascii_serialization())
+        .collect()
+}
+
 fn on_menu(app: &AppHandle, id: &str) -> tauri::Result<()> {
     match id {
         label if label.starts_with("doc-") => documents::focus(app, label),
+        id if id.starts_with("site:") => {
+            sites::open_saved(app, id["site:".len()..].to_string());
+            Ok(())
+        }
+        "add_site" => sites::open_window(app),
+        id if id.starts_with("primary:") => {
+            if let Err(e) = sites::set_primary(app, &id["primary:".len()..]) {
+                eprintln!("primary site: {e}");
+            }
+            refresh_menu(app)
+        }
         "about" => release::open_about(app),
         "install_update" => {
             release::install(app);
@@ -239,17 +303,27 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(
             tauri_plugin_window_state::Builder::default()
-                .with_denylist(&[SETUP, PIN, local::WINDOW])
+                .with_denylist(&[SETUP, PIN, local::WINDOW, sites::WINDOW, sites::CHOOSER])
                 .build(),
         )
         .manage(PendingConnection::default())
         .manage(Registry::default())
         .manage(release::Pending::default())
+        .manage(sites::SiteError::default())
+        .manage(device_login::Grants::default())
         .invoke_handler(tauri::generate_handler![
             pending_connection,
             inspect_connection,
             activate_connection,
             open_local,
+            sites::add_site,
+            sites::site_error,
+            sites::saved_sites,
+            sites::open_sites,
+            device_login::device_status,
+            device_login::device_register,
+            device_login::device_sign,
+            device_login::device_forget,
             #[cfg(feature = "devices")]
             devices::pin_request,
             #[cfg(feature = "devices")]
@@ -319,7 +393,7 @@ pub fn run() {
                 documents::open(handle, Document::from_url(&parse_url(&url)?))?;
             } else {
                 #[cfg(not(target_os = "macos"))]
-                choose_document(handle)?;
+                first_window(handle)?;
             }
             Ok(())
         })
@@ -337,11 +411,11 @@ pub fn run() {
                 }
                 RunEvent::MainEventsCleared if initial_picker => {
                     initial_picker = false;
-                    if app.webview_windows().is_empty() { let _ = choose_document(app); }
+                    if app.webview_windows().is_empty() { let _ = first_window(app); }
                 }
                 RunEvent::Reopen { has_visible_windows: false, .. } if app.webview_windows().is_empty() => {
                     initial_picker = false;
-                    let _ = choose_document(app);
+                    let _ = first_window(app);
                 }
                 RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
                 _ => (),
