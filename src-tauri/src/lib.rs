@@ -6,6 +6,7 @@ mod connector;
 mod device_key;
 mod device_login;
 mod documents;
+mod fiscal;
 mod local;
 mod manage;
 #[cfg(feature = "sidecar")]
@@ -318,6 +319,7 @@ pub fn run() {
         .manage(release::Pending::default())
         .manage(sites::SiteError::default())
         .manage(device_login::Grants::default())
+        .manage(fiscal::Registers::default())
         .manage(printing::Grants::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
@@ -361,7 +363,14 @@ pub fn run() {
             #[cfg(feature = "sidecar")]
             modules::manage_update_modules,
             #[cfg(feature = "sidecar")]
-            modules::manage_remove_module
+            modules::manage_remove_module,
+            fiscal::fiscal_status,
+            fiscal::fiscal_receipt,
+            fiscal::fiscal_x_report,
+            fiscal::fiscal_daily_closure,
+            fiscal::manage_fiscal_get,
+            fiscal::manage_fiscal_set,
+            fiscal::manage_fiscal_test
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {

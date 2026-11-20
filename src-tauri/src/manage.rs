@@ -84,6 +84,7 @@ pub async fn manage_forget(app: AppHandle, origin: String) -> Result<(), String>
 pub async fn manage_remove(app: AppHandle, origin: String) -> Result<(), String> {
     let label = device_key::label(&origin);
     tauri::async_runtime::spawn_blocking(move || device_key::delete(&label)).await.map_err(|e| e.to_string())??;
+    crate::fiscal::forget(&app, &origin)?;
     sites::remove(&app, &origin)?;
     crate::refresh_menu(&app).map_err(|e| e.to_string())
 }

@@ -67,6 +67,7 @@ pub fn open(app: &AppHandle, doc: Document) -> tauri::Result<()> {
     // Only the pages of saved sites reach the commands of this computer.
     if matches!(super::sites::find(app, &url.origin().ascii_serialization()), Ok(Some(_))) {
         super::device_login::grant(app, &url, &label)?;
+        super::fiscal::grant(app, &url, &label)?;
         super::printing::grant(app, &url, &label)?;
         #[cfg(feature = "cards")]
         super::cards::grant(app, &url, &label)?;

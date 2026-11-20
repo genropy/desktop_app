@@ -35,6 +35,8 @@ ring = "0.17"
 # The RunDoc of a site, read at /_tools/rundoc. The CA trust of the OS decides which certificates are valid.
 reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
+# The answers of the fiscal cash registers (fpmate.cgi).
+quick-xml = "0.42"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

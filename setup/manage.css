@@ -9,3 +9,5 @@
 .manage .primary { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(40, 110, 240, 0.15); }
 #message { white-space: pre-line; min-height: 1.2em; }
 #message.error { color: #c0392b; }
+.manage td input[type=text] { width: 100%; box-sizing: border-box; }
+.manage td small.fingerprint { font-family: ui-monospace, monospace; font-size: 10px; word-break: break-all; }
