@@ -3,6 +3,8 @@
 //! Requests carry an `id` and get an answer with the same `id`. Lines with `event` are device
 //! events, forwarded to the main window as the Tauri event `device-event`. The sidecar writes
 //! its log on stderr, which goes to the stderr of the runner.
+//!
+//! Built with the feature `sidecar`, which only the "industry" build has (machine-side devices).
 
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
@@ -13,12 +15,15 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::ipc::CapabilityBuilder;
+use tauri::{AppHandle, Emitter, Manager, State, Url};
 use tokio::sync::oneshot;
 
 type Pending = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
 
 pub struct Sidecar {
+    /// Window labels that already received `device_call`.
+    labels: Mutex<std::collections::HashSet<String>>,
     child: Mutex<Child>,
     stdin: Mutex<ChildStdin>,
     pending: Pending,
@@ -68,7 +73,7 @@ impl Sidecar {
                 let _ = reply.send(Err("sidecar exited".to_string()));
             }
         });
-        Ok(Self { child: Mutex::new(child), stdin: Mutex::new(stdin), pending, next_id: AtomicU64::new(1) })
+        Ok(Self { labels: Mutex::default(), child: Mutex::new(child), stdin: Mutex::new(stdin), pending, next_id: AtomicU64::new(1) })
     }
 
     pub async fn call(&self, module: &str, method: &str, params: Value) -> Result<Value, String> {
@@ -121,4 +126,44 @@ fn dispatch(app: &AppHandle, pending: &Pending, message: Value) {
     } else {
         eprintln!("[runner] sidecar line not understood: {message}");
     }
+}
+
+/// Grants `device_call` and the events to the pages of `url`'s origin in the window `label`.
+pub fn grant(app: &AppHandle, url: &Url, label: &str) -> tauri::Result<()> {
+    let sidecar = app.state::<Sidecar>();
+    let mut labels = sidecar.labels.lock().unwrap();
+    if labels.contains(label) {
+        return Ok(());
+    }
+    let origin = url.origin().ascii_serialization();
+    let capability = CapabilityBuilder::new(format!("sidecar-{}", labels.len()))
+        .remote(format!("{origin}/*"))
+        .local(false)
+        .window(label)
+        .permission("allow-device-call")
+        .permission("core:event:default");
+    app.add_capability(capability)?;
+    labels.insert(label.into());
+    Ok(())
+}
+
+/// Calls `module.method(**params)` in the Python sidecar.
+#[tauri::command]
+pub async fn device_call(
+    sidecar: State<'_, Sidecar>,
+    module: String,
+    method: String,
+    params: Option<Value>,
+) -> Result<Value, String> {
+    sidecar.call(&module, &method, params.unwrap_or(Value::Null)).await
+}
+
+/// Starts the sidecar.
+pub fn setup(app: &AppHandle) -> Result<(), String> {
+    app.manage(Sidecar::start(app.clone(), &crate::config_path(app)?)?);
+    Ok(())
+}
+
+pub fn stop(app: &AppHandle) {
+    app.state::<Sidecar>().stop();
 }

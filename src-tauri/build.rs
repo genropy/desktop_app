@@ -21,7 +21,6 @@ fn main() {
         "card_list",
         "card_sign",
         "card_close",
-        "card_test",
         "manage_features",
         "manage_sites",
         "manage_set_primary",
@@ -29,6 +28,9 @@ fn main() {
         "manage_remove",
         "manage_test_key",
         "device_call",
+        "printer_list",
+        "print_pdf",
+        "print_zpl",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)).expect("failed to run tauri-build");
 }

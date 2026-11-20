@@ -77,16 +77,16 @@ struct Card {
     open_until: Option<SystemTime>,
 }
 
-/// What the page receives for each card in the readers.
-#[derive(Serialize)]
+/// What the page receives for each card in the readers; the menu "Firma digitale" shows the same.
+#[derive(Clone, PartialEq, Serialize)]
 pub struct CardInfo {
-    fingerprint: String,
-    holder: String,
-    serial: String,
-    valid_until: String,
+    pub fingerprint: String,
+    pub holder: String,
+    pub serial: String,
+    pub valid_until: String,
     /// DER, base64.
-    certificate: String,
-    open: bool,
+    pub certificate: String,
+    pub open: bool,
 }
 
 /// What the PIN window shows.

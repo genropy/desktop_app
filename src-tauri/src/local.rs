@@ -16,12 +16,6 @@ pub fn document(port: u16) -> Result<Document, String> {
     Ok(Document { name: format!("{HOST}:{port}"), url: url.to_string(), id: None, icon: None })
 }
 
-/// True for the address `document` builds: these windows get no card commands.
-#[cfg_attr(not(feature = "devices"), allow(dead_code))]
-pub fn is_local(url: &Url) -> bool {
-    url.scheme() == "http" && url.host_str() == Some(HOST)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -31,9 +25,6 @@ mod tests {
         let doc = document(8080).unwrap();
         assert_eq!(doc.url, "http://localhost:8080/");
         assert_eq!(doc.name, "localhost:8080");
-        assert!(is_local(&Url::parse(&doc.url).unwrap()));
         assert!(document(0).is_err());
-        assert!(!is_local(&Url::parse("https://localhost:8080/").unwrap()));
-        assert!(!is_local(&Url::parse("http://example.com/").unwrap()));
     }
 }
