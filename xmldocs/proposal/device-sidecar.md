@@ -1,7 +1,7 @@
 <!-- generated from device-sidecar.xml by xmldocs: do not edit, edit the XML -->
 
 ## Local devices through a Python sidecar
-*Proposal · proposal/device-sidecar · 2026-11-04 · draft*
+*Proposal · proposal/device-sidecar · 2026-11-20 · draft*
 
 ### Problem
 
@@ -14,11 +14,17 @@ A GenroPy page in a browser cannot reach the devices of the machine it runs on. 
 
 The device code must be written in Python, the language of the GenroPy team and of the existing signing agent of icond. Writing each device in Rust inside the Tauri shell does not scale.
 
+The cases are hundreds: every customer has its own machines, scales, readers and label printers. A module for a new device must reach the computers of that customer without a new release of GenroApp, and only those computers.
+
 ### Current state
 
 - **GenroApp** (this repository): Tauri 2 shell with the card logic in Rust, `src-tauri/src/card.rs`. See the booklet (→ booklet/genropy-runner#s-sign).
 - **icond signing agent** (`firmatore_mac/`, branch `firma-digitale-protocolli`): Python app in the menu bar or tray, PyKCS11, polls icond every 30 seconds. On Windows it is a 32-bit PyInstaller build, because the bit4id DLL of Firma4NG is 32-bit only.
 - **Mobile**: Android and iOS apps are built with Capacitor.
+
+- `READ` `sidecar/main.py:21 (commit 3e3f520)` · 2026-11-20 — The sidecar imports its modules with `import modules` at start. The modules are `system` and `inbox`, in `sidecar/modules/`.
+- `READ` `src-tauri/src/sidecar.rs:30-41 (commit 3e3f520)` · 2026-11-20 — A release build runs the PyInstaller executable `genropy-sidecar` placed next to the shell executable: the modules are frozen inside it at build time.
+- `READ` `macos/build-developer-id.sh (commit 18a5bb9)` · 2026-11-20 — The distributed macOS build passes `--no-default-features`: it has neither the sidecar nor the card commands.
 
 ### Proposed solution
 
@@ -114,6 +120,33 @@ Implemented: `system` and `inbox`, described in the booklet (→ booklet/genropy
 2. `photos`: the system picker, where the user chooses the photos and the app receives only those. Full library access through PhotoKit needs `NSPhotoLibraryUsageDescription` in the Info.plist of the bundle.
 3. `cards`: `tessere.py` of icond with its logic unchanged. The Rust `card.rs` is removed once `cards` works.
 
+#### Modules installed on the client
+
+A module for one customer is not frozen in the app. It is a package downloaded on the computers of that customer and loaded by the sidecar at start.
+
+1. Softwell builds the package of a module: its Python sources, the pure Python libraries it needs, and a manifest with name, version and the origins of the sites that may call it.
+2. Softwell signs the manifest with the Ed25519 key that signs the RunDoc. The manifest carries the SHA-256 of every file of the package.
+3. A saved site offers its modules at a fixed address, like `/_tools/rundoc`. GenroApp downloads them, verifies the signature and the hashes, and checks that the origin of the site is in the manifest.
+4. GenroApp writes the package to `app_config_dir/modules/<name>/<version>/` and restarts the sidecar.
+5. The sidecar adds that folder to `sys.path` and imports the modules after its own. The registry and `device_call` do not change.
+6. The shell grants `device_call` for a module only to the origins of its manifest.
+
+- **must** — GenroApp loads only modules whose manifest carries a valid Softwell signature and whose files match the hashes of the manifest. *(a module is code that runs on the computer of the user: an unsigned one lets a compromised site run any code there)*
+- **must** — A module is callable only from the origins listed in its signed manifest.
+- On macOS a module with native libraries (`.so`, `.dylib`) loads only if those libraries are signed with the Softwell Developer ID: the hardened runtime refuses unsigned libraries, and the app keeps that check. Pure Python modules have no such limit.
+- Third-party libraries of a module travel in its package. The frozen sidecar holds only the standard library and the libraries of the built-in modules.
+
+The window Gestione of GenroApp lists the installed modules with version and origins, and removes one.
+
+#### Built-in devices and downloaded modules
+
+Two places for device code:
+
+- **Built into GenroApp, in Rust**: the few devices every customer has, always the same. Signature cards (`card.rs`, PKCS#11), local and label printers (`lp`, raw ZPL on port 9100), fiscal cash registers. They work in the distributed build, without the sidecar.
+- **Downloaded Python modules**: everything specific to one customer. Machines at the operator station (OPC UA, Modbus, Siemens S7), scales, serial and USB readers, medical devices.
+
+Machines read continuously, with no operator, do not belong in GenroApp: they need a process on the server side of the plant that runs with no app open.
+
 #### Packaging
 
 - The sidecar is frozen with PyInstaller and shipped inside the app bundle, next to the shell.
@@ -159,6 +192,12 @@ With the Python sidecar the shell is a small fixed layer: window, permissions, f
    1. **Through the page**: The sidecar emits an event, the page sends the data with an RPC. Works only with the page open.
    2. **Sidecar to server**: The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.
    → Choice: **Through the page** (GP, 2026-11-04) — The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.
+- **d-builtin** `proposed` — Where do signature cards, printers and cash registers live?
+   1. **Built into GenroApp, in Rust**: They work in the distributed build with no Python runtime. A change needs a new release of GenroApp.
+   2. **Sidecar modules**: One mechanism for every device. The distributed build always carries the Python runtime.
+- **d-module-source** `proposed` — How does a module reach the computer of a customer?
+   1. **Frozen in the sidecar**: Every module is in every app. A new module needs a new release.
+   2. **Downloaded signed package**: A module reaches only the sites listed in its manifest, without a new release. Needs the signature and hash checks above.
 - **d-medical** `open` — Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.
    1. **Not medical device software: data transfer only**
    2. **Medical device software: certification needed**
@@ -166,7 +205,8 @@ With the Python sidecar the shell is a small fixed layer: window, permissions, f
 ### Consequences
 
 - The repository gains a `sidecar/` Python package with its own tests and PyInstaller spec.
-- `src-tauri/src/card.rs` and the `card_*` commands are replaced by `device_call` and the `cards` module.
+- With built-in devices in Rust (→ d-builtin), `src-tauri/src/card.rs` stays and the `cards` module of the sidecar is not written.
+- Softwell gains a second signing duty: module packages, with the key of the RunDoc.
 - Builds become two per platform (shell and sidecar), joined in one bundle and one installer.
 - Modules with listeners (DICOM Storage, HL7, MQTT) open ports on the local network. The icond agent never does; each such port is a configuration choice per installation.
 - Mobile stays on Capacitor. A page can detect the platform with `window.Capacitor`, `window.__TAURI__` or neither.
