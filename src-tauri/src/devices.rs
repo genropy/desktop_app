@@ -9,6 +9,10 @@ use std::time::{Duration, SystemTime};
 
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use ring::rand::{SecureRandom, SystemRandom};
+use ring::signature::{UnparsedPublicKey, RSA_PKCS1_2048_8192_SHA256};
+use sha2::{Digest, Sha256};
+use x509_parser::parse_x509_certificate;
 use serde_json::Value;
 use tauri::ipc::CapabilityBuilder;
 use tauri::{AppHandle, Manager, State, Url, WebviewUrl, WebviewWindowBuilder, Window, WindowEvent};
@@ -156,6 +160,26 @@ pub async fn card_sign(app: AppHandle, card: String, digest: String) -> Result<S
     }
     let signature = with_cards(&app, |cards| cards.sign(&card, &digest))?;
     Ok(STANDARD.encode(signature))
+}
+
+/// Signs a random message with `card` (PIN first when closed) and verifies the signature with the public key of
+/// its certificate, here. Granted only to the local window "Gestione".
+#[tauri::command]
+pub async fn card_test(app: AppHandle, card: String) -> Result<String, String> {
+    let mut message = [0u8; 64];
+    SystemRandom::new().fill(&mut message).map_err(|_| "random generator not available".to_string())?;
+    let digest = Sha256::digest(message);
+    if !with_cards(&app, |cards| Ok(cards.is_open(&card)))? {
+        ask_pin(&app, &card).await?;
+    }
+    let signature = with_cards(&app, |cards| cards.sign(&card, &digest))?;
+    let der = with_cards(&app, |cards| cards.certificate(&card))?;
+    let (_, certificate) = parse_x509_certificate(&der).map_err(|e| format!("certificate: {e}"))?;
+    let public_key = &certificate.public_key().subject_public_key.data;
+    UnparsedPublicKey::new(&RSA_PKCS1_2048_8192_SHA256, public_key.as_ref())
+        .verify(&message, &signature)
+        .map_err(|_| "La firma non corrisponde al certificato della carta.".to_string())?;
+    Ok(format!("Firma verificata con il certificato di {}.", certificate.subject()))
 }
 
 #[tauri::command]

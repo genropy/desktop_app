@@ -245,6 +245,11 @@ impl Cards {
         result
     }
 
+    /// The certificate of the card, DER.
+    pub fn certificate(&self, fingerprint: &str) -> Result<Vec<u8>, String> {
+        Ok(self.card(fingerprint)?.der.clone())
+    }
+
     pub fn close(&mut self, fingerprint: &str) -> Result<(), String> {
         close_card(self.cards.get_mut(fingerprint).ok_or_else(|| unknown(fingerprint))?);
         Ok(())

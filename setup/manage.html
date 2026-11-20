@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Gestione</title>
+  <link rel="stylesheet" href="setup.css">
+  <link rel="stylesheet" href="manage.css">
+  <script src="manage.js" defer></script>
+</head>
+<body class="manage">
+  <section>
+    <h2>Siti</h2>
+    <table>
+      <thead><tr><th>Sito</th><th>Utente</th><th>Verifica</th><th></th></tr></thead>
+      <tbody id="sites"></tbody>
+    </table>
+  </section>
+  <section id="cards-section" hidden>
+    <h2>Carte di firma</h2>
+    <table>
+      <thead><tr><th>Titolare</th><th>Scadenza</th><th>Stato</th><th></th></tr></thead>
+      <tbody id="cards"></tbody>
+    </table>
+    <div class="buttons"><button id="refresh-cards">Rileggi i lettori</button></div>
+  </section>
+  <p id="message"></p>
+</body>
+</html>

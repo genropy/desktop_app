@@ -1,0 +1,11 @@
+.manage section { margin-bottom: 24px; }
+.manage h2 { font-size: 15px; margin: 0 0 8px; }
+.manage table { width: 100%; border-collapse: collapse; }
+.manage th { text-align: left; font-weight: 600; font-size: 12px; opacity: 0.7; padding: 4px 6px; }
+.manage td { padding: 6px; border-top: 1px solid rgba(128, 128, 128, 0.25); vertical-align: top; }
+.manage td small { display: block; opacity: 0.6; }
+.manage td.actions { text-align: right; white-space: nowrap; }
+.manage td.actions button { padding: 3px 8px; font-size: 12px; margin-left: 4px; }
+.manage .primary { font-size: 11px; padding: 1px 6px; border-radius: 8px; background: rgba(40, 110, 240, 0.15); }
+#message { white-space: pre-line; min-height: 1.2em; }
+#message.error { color: #c0392b; }

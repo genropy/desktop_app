@@ -84,6 +84,8 @@ pub fn app_menu(app: &AppHandle) -> tauri::Result<Submenu<tauri::Wry>> {
     let name = app.package_info().name.clone();
     let menu = Submenu::with_items(app, &name, true, &[
         &MenuItem::with_id(app, "about", format!("Informazioni su {name}"), true, None::<&str>)?,
+        &PredefinedMenuItem::separator(app)?,
+        &MenuItem::with_id(app, "manage", "Gestione…", true, Some("CmdOrCtrl+,"))?,
     ])?;
     if let Some(version) = pending_version(app) {
         let title = format!("Aggiorna a {version} e riavvia");

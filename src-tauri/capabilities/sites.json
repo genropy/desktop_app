@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "sites",
+  "description": "The local window that lists the saved sites at start, to open one or more.",
+  "windows": ["sites"],
+  "permissions": ["core:default", "allow-saved-sites", "allow-open-sites"]
+}

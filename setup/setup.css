@@ -13,3 +13,7 @@ button { align-self: flex-end; padding: 6px 18px; font-size: 14px; }
 .connector label, .connector input { display: block; }
 .connector input { padding: 10px 0; max-width: 100%; }
 .connector #status { white-space: pre-line; overflow-wrap: anywhere; }
+
+#list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+#list .site { font-weight: 400; display: flex; align-items: baseline; gap: 6px; }
+#list .site small { opacity: 0.6; }

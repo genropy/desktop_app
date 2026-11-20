@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<proposal id="proposal/device-sidecar" title="Local devices through a Python sidecar" date="2026-11-04" lang="en" author="Giovanni Porcari" status="draft">
+<proposal id="proposal/device-sidecar" title="Local devices through a Python sidecar" date="2026-11-20" lang="en" author="Giovanni Porcari" status="draft">
   <problem>
     <p>A GenroPy page in a browser cannot reach the devices of the machine it runs on. The downloadable app exists to give the page that access, and the card reader is only the first device. The next ones are:</p>
     <list>
@@ -9,6 +9,7 @@
       <item>other serial, USB or network devices.</item>
     </list>
     <p>The device code must be written in Python, the language of the GenroPy team and of the existing signing agent of icond. Writing each device in Rust inside the Tauri shell does not scale.</p>
+    <p>The cases are hundreds: every customer has its own machines, scales, readers and label printers. A module for a new device must reach the computers of that customer without a new release of GenroApp, and only those computers.</p>
   </problem>
 
   <current>
@@ -17,6 +18,9 @@
       <item><b>icond signing agent</b> (<c>firmatore_mac/</c>, branch <c>firma-digitale-protocolli</c>): Python app in the menu bar or tray, PyKCS11, polls icond every 30 seconds. On Windows it is a 32-bit PyInstaller build, because the bit4id DLL of Firma4NG is 32-bit only.</item>
       <item><b>Mobile</b>: Android and iOS apps are built with Capacitor.</item>
     </list>
+    <fact source="sidecar/main.py:21 (commit 3e3f520)" method="read" verified="2026-11-20">The sidecar imports its modules with <c>import modules</c> at start. The modules are <c>system</c> and <c>inbox</c>, in <c>sidecar/modules/</c>.</fact>
+    <fact source="src-tauri/src/sidecar.rs:30-41 (commit 3e3f520)" method="read" verified="2026-11-20">A release build runs the PyInstaller executable <c>genropy-sidecar</c> placed next to the shell executable: the modules are frozen inside it at build time.</fact>
+    <fact source="macos/build-developer-id.sh (commit 18a5bb9)" method="read" verified="2026-11-20">The distributed macOS build passes <c>--no-default-features</c>: it has neither the sidecar nor the card commands.</fact>
   </current>
 
   <solution>
@@ -108,6 +112,32 @@ class Printers(object):
       </list>
     </section>
 
+    <section title="Modules installed on the client">
+      <p>A module for one customer is not frozen in the app. It is a package downloaded on the computers of that customer and loaded by the sidecar at start.</p>
+      <list ordered="true">
+        <item>Softwell builds the package of a module: its Python sources, the pure Python libraries it needs, and a manifest with name, version and the origins of the sites that may call it.</item>
+        <item>Softwell signs the manifest with the Ed25519 key that signs the RunDoc. The manifest carries the SHA-256 of every file of the package.</item>
+        <item>A saved site offers its modules at a fixed address, like <c>/_tools/rundoc</c>. GenroApp downloads them, verifies the signature and the hashes, and checks that the origin of the site is in the manifest.</item>
+        <item>GenroApp writes the package to <c>app_config_dir/modules/&lt;name&gt;/&lt;version&gt;/</c> and restarts the sidecar.</item>
+        <item>The sidecar adds that folder to <c>sys.path</c> and imports the modules after its own. The registry and <c>device_call</c> do not change.</item>
+        <item>The shell grants <c>device_call</c> for a module only to the origins of its manifest.</item>
+      </list>
+      <rule level="must" why="a module is code that runs on the computer of the user: an unsigned one lets a compromised site run any code there">GenroApp loads only modules whose manifest carries a valid Softwell signature and whose files match the hashes of the manifest.</rule>
+      <rule level="must">A module is callable only from the origins listed in its signed manifest.</rule>
+      <limit>On macOS a module with native libraries (<c>.so</c>, <c>.dylib</c>) loads only if those libraries are signed with the Softwell Developer ID: the hardened runtime refuses unsigned libraries, and the app keeps that check. Pure Python modules have no such limit.</limit>
+      <limit>Third-party libraries of a module travel in its package. The frozen sidecar holds only the standard library and the libraries of the built-in modules.</limit>
+      <p>The window Gestione of GenroApp lists the installed modules with version and origins, and removes one.</p>
+    </section>
+
+    <section title="Built-in devices and downloaded modules">
+      <p>Two places for device code:</p>
+      <list>
+        <item><b>Built into GenroApp, in Rust</b>: the few devices every customer has, always the same. Signature cards (<c>card.rs</c>, PKCS#11), local and label printers (<c>lp</c>, raw ZPL on port 9100), fiscal cash registers. They work in the distributed build, without the sidecar.</item>
+        <item><b>Downloaded Python modules</b>: everything specific to one customer. Machines at the operator station (OPC UA, Modbus, Siemens S7), scales, serial and USB readers, medical devices.</item>
+      </list>
+      <p>Machines read continuously, with no operator, do not belong in GenroApp: they need a process on the server side of the plant that runs with no app open.</p>
+    </section>
+
     <section title="Packaging">
       <list>
         <item>The sidecar is frozen with PyInstaller and shipped inside the app bundle, next to the shell.</item>
@@ -162,6 +192,18 @@ class Printers(object):
       <option id="d-data-path-direct" title="Sidecar to server"><p>The sidecar posts to the server with a token, as the icond agent does. Works with the window closed.</p></option>
       <choice option="d-data-path-page" by="GP" date="2026-11-04">The page uploads with the session of the logged-in user. Data that arrives with the app closed waits for the next opening.</choice>
     </decision>
+    <decision id="d-builtin" status="decided">
+      <question>Where do signature cards, printers and cash registers live?</question>
+      <option id="d-builtin-rust" title="Built into GenroApp, in Rust"><p>They work in the distributed build with no Python runtime. A change needs a new release of GenroApp.</p></option>
+      <option id="d-builtin-python" title="Sidecar modules"><p>One mechanism for every device. The distributed build always carries the Python runtime.</p></option>
+      <choice option="d-builtin-rust" by="GP" date="2026-11-20">Cards, printers and cash registers are built into GenroApp in Rust.</choice>
+    </decision>
+    <decision id="d-module-source" status="decided">
+      <question>How does a module reach the computer of a customer?</question>
+      <option id="d-module-source-frozen" title="Frozen in the sidecar"><p>Every module is in every app. A new module needs a new release.</p></option>
+      <option id="d-module-source-download" title="Downloaded signed package"><p>A module reaches only the sites listed in its manifest, without a new release. Needs the signature and hash checks above.</p></option>
+      <choice option="d-module-source-download" by="GP" date="2026-11-20">Modules specific to a customer are downloaded as packages signed by Softwell.</choice>
+    </decision>
     <decision id="d-medical" status="open">
       <question>Does processing images and reports from medical devices make the app medical device software under the MDR? Images and reports are health data under the GDPR in any case. To clarify before distributing the medical modules.</question>
       <option id="d-medical-no" title="Not medical device software: data transfer only"/>
@@ -172,7 +214,8 @@ class Printers(object):
   <consequences>
     <list>
       <item>The repository gains a <c>sidecar/</c> Python package with its own tests and PyInstaller spec.</item>
-      <item><c>src-tauri/src/card.rs</c> and the <c>card_*</c> commands are replaced by <c>device_call</c> and the <c>cards</c> module.</item>
+      <item>With <ref to="d-builtin">built-in devices in Rust</ref>, <c>src-tauri/src/card.rs</c> stays and the <c>cards</c> module of the sidecar is not written.</item>
+      <item>Softwell gains a second signing duty: module packages, with the key of the RunDoc.</item>
       <item>Builds become two per platform (shell and sidecar), joined in one bundle and one installer.</item>
       <item>Modules with listeners (DICOM Storage, HL7, MQTT) open ports on the local network. The icond agent never does; each such port is a configuration choice per installation.</item>
       <item>Mobile stays on Capacitor. A page can detect the platform with <c>window.Capacitor</c>, <c>window.__TAURI__</c> or neither.</item>

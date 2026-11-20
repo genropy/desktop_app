@@ -29,9 +29,16 @@ base64 = "0.23.1"
 x509-parser = { version = "0.18.1", optional = true }
 tokio = { version = "1.54.1", features = ["sync", "time"] }
 ring = "0.17"
+# The RunDoc of a site, read at /_tools/rundoc. The CA trust of the OS decides which certificates are valid.
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"
 objc2-foundation = { version = "0.3", default-features = false, features = ["NSArray", "NSString", "NSURL"] }
 objc2-app-kit = { version = "0.3", default-features = false, features = ["NSOpenPanel", "NSSavePanel", "NSApplication", "NSWindow", "NSDockTile", "block2"] }
 block2 = "0.6"
+# The device key of each site: Secure Enclave P-256 in the data protection keychain.
+security-framework = { version = "3", features = ["OSX_10_15"] }
+core-foundation = "0.10"
+objc2-local-authentication = { version = "0.3", default-features = false, features = ["std", "LAContext"] }
