@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<proposal id="proposal/biometric-login" title="GenroApp sites and biometric login through a device key" date="2026-11-20" lang="en" author="Giovanni Porcari" status="draft">
+  <problem>
+    <p>A GenroPy site wants a guarantee that the person using it is the one who passed a biometric reading at login. Today it gets a username and a password, which anyone who knows them can type in any browser.</p>
+    <p>The goal has four parts:</p>
+    <list ordered="true">
+      <item>GenroApp proves to the site that a biometric reading happened on a registered computer, at the moment of the login.</item>
+      <item>The administrators of each site decide which users, or all of them, may log in and run given operations only from GenroApp.</item>
+      <item>One GenroApp serves several GenroPy sites, each in its own window, at the same time.</item>
+      <item>Only the sites of customers who pay for the GenroApp service can be used in the app. A customer who has the app but has not paid cannot use it, neither for its own site nor to reach another customer's site.</item>
+    </list>
+    <p>A user agent string or a header added by GenroApp does not reach these goals: it can be copied into a browser or a script.</p>
+  </problem>
+
+  <current>
+    <fact source="src-tauri/src/connector.rs (commit fda6173)" method="read" verified="2026-11-20">A RunDoc is a JSON envelope <c>{payload, signature}</c>. The Ed25519 signature covers the exact payload bytes, payload URL included, and is verified with the Softwell public key embedded in the build.</fact>
+    <fact source="src-tauri/src/connector.rs:9-23 (commit fda6173)" method="read" verified="2026-11-20">The envelope and the payload are parsed with <c>#[serde(deny_unknown_fields)]</c>: GenroApp 0.1.0 rejects any field it does not know.</fact>
+    <fact source="src-tauri/src/documents.rs:26-31 (commit 00a81fe)" method="read" verified="2026-11-20">Each opened site gets its own window, identified by the URL origin plus the RunDoc <c>id</c>; the Finestre menu lists the open windows.</fact>
+    <fact source="src-tauri/src/lock.rs:52 (branch feature/touch-id-lock, commit 2cb58bd)" method="read" verified="2026-11-20">GenroApp asks Touch ID with <c>LAContext.evaluatePolicy</c> and <c>LAPolicy::DeviceOwnerAuthentication</c> to unlock its own windows. The check is local: the site cannot verify it, and it also accepts the macOS account password.</fact>
+    <fact source="projects/gnrcore/packages/adm/resources/login.py:294-337 (genropy develop 448fa4ad24)" method="read" verified="2026-11-20">The GenroPy login has a second step: <c>login_checkAvatar</c> checks the password, then, when <c>login_require2fa</c> is true, keeps <c>waiting2fa</c> in the page store and opens the OTP dialog.</fact>
+    <fact source="gnrpy/gnr/web/gnrwebpage.py:1864-1884 (genropy develop 448fa4ad24)" method="read" verified="2026-11-20"><c>page.userTags</c> joins the user tags with <c>rootenv['user_local_tags']</c>, the tags of the connection.</fact>
+    <fact source="gnrpy/gnr/web/gnrwebpage.py:1413 (genropy develop 448fa4ad24)" method="read" verified="2026-11-20">An RPC declared with <c>@public_method(tags=…)</c> is refused on the server when <c>checkResourcePermission(handler.tags, self.userTags)</c> fails. Tag rules accept <c>AND</c>, <c>NOT</c> and <c>,</c> (<c>gnr/app/gnrapp.py:1868</c>).</fact>
+    <fact source="webtools/rundoc.py (genropy branch feature/genroapp-download, commit 2c0e7d8f7c)" method="test" verified="2026-11-20"><c>/_tools/rundoc</c> serves <c>site:genroapp/connection.rundoc</c> as an attachment with MIME <c>application/vnd.softwell.connection+json</c>, and answers 404 when the file is missing.</fact>
+  </current>
+
+  <solution>
+    <section title="The RunDoc becomes the licence of the site" id="s-licence">
+      <p>The user no longer handles RunDoc files. Softwell signs one RunDoc per paying site, and the site serves it at a fixed address, <c>/_tools/rundoc</c>. GenroApp reads it there. The RunDoc is the proof that the site may be used in GenroApp.</p>
+      <list>
+        <item>At deploy, the Softwell CI signs the RunDoc of the site (name, URL, icon, expiry) with the Softwell key and writes it to <c>site:genroapp/connection.rundoc</c>. The key never reaches the site.</item>
+        <item>At every renewal of the service, the CI signs it again with a new expiry.</item>
+        <item>A site of a customer who has not paid has no RunDoc, or an expired one.</item>
+      </list>
+    </section>
+
+    <section title="Adding a site" id="s-add">
+      <list ordered="true">
+        <item>GenroApp has no sites and opens the window "Aggiungi sito". The menu also has "Aggiungi sito…" for the next ones. The user types <c>app.acme.com</c>.</item>
+        <item>GenroApp calls <c>https://app.acme.com/_tools/rundoc</c> and receives the RunDoc.</item>
+        <item>GenroApp checks three things: the Softwell signature, that the URL in the RunDoc has the same origin as the address typed, and that the expiry has not passed. When one check fails it shows "Questo sito non è abilitato a GenroApp" and stops.</item>
+        <item>GenroApp saves the site (name, icon, URL) and opens its window.</item>
+      </list>
+      <rule level="must" why="the sites, their users and their keys belong to the person logged into the operating system">Every site added in GenroApp belongs to the operating system user who runs the app. Another account of the same computer starts with no sites and no keys.</rule>
+      <p>The operating system already enforces the rule: the site list goes in the app configuration folder of the account (<c>app_config_dir</c>, where <c>prefs.rs</c> of branch <c>feature/touch-id-lock</c> already keeps <c>config.json</c>), and the keys go in the keychain of the account.</p>
+    </section>
+
+    <section title="Registering the computer" id="s-register">
+      <list ordered="true">
+        <item>The site shows its normal login. The user types username and password, and the OTP when enabled.</item>
+        <item>After the login the site starts the registration. GenroApp asks the biometric reading and creates a key pair in secure hardware, for this site and this user.
+          <list>
+            <item>User covered by the policy "only from GenroApp": the registration is mandatory, with no way to refuse. When the user cancels the biometric reading, the session is closed.</item>
+            <item>User not covered by the policy: the site asks "Registrare questo computer?". On "no" the session goes on with the password only, without <c>_DEVICE_</c>, and the question comes back at the next login.</item>
+          </list>
+        </item>
+        <item>GenroApp sends the public key to the site. The site stores it in a new table <c>adm.user_device</c>: user, key type, public key, device name, creation date, last use, revoked flag.</item>
+        <item>GenroApp saves, for the site, the user and the reference to the key. One computer has one user per site.</item>
+      </list>
+    </section>
+
+    <section title="Next logins" id="s-login">
+      <list ordered="true">
+        <item>The user picks the site from the Finestre menu, or GenroApp reopens it at start.</item>
+        <item>GenroApp reads the RunDoc of the site again. When it is expired, the site is disabled in the app with the message "abbonamento scaduto".</item>
+        <item>The site sends a challenge: random bytes, single use, short life, kept in the page store like <c>waiting2fa</c>.</item>
+        <item>GenroApp asks the biometric reading. The secure hardware signs the challenge together with the site origin and the user.</item>
+        <item>The site verifies the signature with the keys of <c>adm.user_device</c>. A valid signature names the user, and the site adds the tag <c>_DEVICE_</c> to the connection, in <c>rootenv['user_local_tags']</c>.</item>
+        <item>Depending on the site preference, the user is logged in, or sees the username fixed in a div and types only the password.</item>
+      </list>
+      <diagram kind="mermaid" title="Adding a site and logging in"><![CDATA[
+sequenceDiagram
+    participant User
+    participant App as GenroApp
+    participant HW as Secure hardware
+    participant Site as GenroPy site
+    User->>App: Aggiungi sito: app.acme.com
+    App->>Site: GET /_tools/rundoc
+    Site-->>App: RunDoc signed by Softwell
+    App->>App: check signature, origin, expiry
+    App->>Site: open login page
+    User->>Site: username + password (first time)
+    Site-->>App: register this computer?
+    App->>User: biometric prompt
+    App->>HW: create key for site + user
+    App->>Site: public key
+    Site->>Site: store in adm.user_device
+    Note over App,Site: next logins
+    Site-->>App: challenge
+    App->>User: biometric prompt
+    App->>HW: sign(challenge + origin + user)
+    App->>Site: signature
+    Site->>Site: verify, add _DEVICE_ to the connection
+]]></diagram>
+    </section>
+
+    <section title="Policies of the administrators" id="s-policy">
+      <list>
+        <item><b>Access only from GenroApp</b>: an application preference says who must use the app: nobody, everybody, or given groups or tags. A user covered by the rule who logs in without a device signature is refused in <c>login_checkAvatar</c>.</item>
+        <item><b>Operations only from GenroApp</b>: they are written with the existing tag rules plus <c>_DEVICE_</c>, for example <c>@public_method(tags='admin AND _DEVICE_')</c> or a menu line with <c>tags='_DEVICE_'</c>. The check already runs on the server.</item>
+        <item>The administrators keep a way in: users with a given tag may still log in with password, otherwise a lost computer locks everybody out.</item>
+      </list>
+    </section>
+
+    <section title="Platforms" id="s-platforms">
+      <table title="Secure hardware per platform">
+        <row head="true"><cell>Platform</cell><cell>Key</cell><cell>Verification</cell><cell>When</cell></row>
+        <row><cell>macOS</cell><cell>Secure Enclave, P-256</cell><cell>Touch ID</cell><cell>Now</cell></row>
+        <row><cell>Windows</cell><cell>TPM through Windows Hello (<c>KeyCredentialManager</c>), RSA</cell><cell>Hello: face, fingerprint or device PIN</cell><cell>Now</cell></row>
+        <row><cell>Linux</cell><cell>FIDO2 security key</cell><cell>Fingerprint on the key, when the model has a reader</cell><cell>Later</cell></row>
+      </table>
+      <p>The protocol towards GenroPy is the same for every platform: registration of a public key, challenge, signature. Adding Linux later adds a key type, not a new login.</p>
+    </section>
+
+    <section title="Paying and non-paying customers" id="s-customers">
+      <list>
+        <item>Customer B, who has not paid, adds its own site: the site has no valid RunDoc, and GenroApp refuses it.</item>
+        <item>B copies the RunDoc of customer A onto its own site: the RunDoc carries A's URL under the signature, and the origin check refuses it.</item>
+        <item>B adds A's site: the RunDoc is valid, but the first login needs a username and a password of A. Without that login no key is registered, and the biometric reading opens nothing.</item>
+        <item>A stops paying: Softwell does not sign a new RunDoc; when the expiry passes, every GenroApp disables A's site.</item>
+      </list>
+    </section>
+
+    <section title="What it guarantees" id="s-guarantees">
+      <list>
+        <item>A biometric reading on a registered computer happened at the moment of the login.</item>
+        <item>The private key cannot be copied to another computer, to a browser or to another account of the same computer.</item>
+        <item>On macOS, <c>biometryCurrentSet</c> invalidates the key when a finger is added or removed. The user then registers again with password.</item>
+      </list>
+      <limit>The reading proves a finger enrolled on that computer, not a given person: several people may have a finger enrolled.</limit>
+      <limit>Only the login is protected. After it, the calls use the normal session cookie. GenroApp keeps its cookies in <c>~/Library/HTTPStorages/it.softwell.genropy.runner.binarycookies</c>, readable by the macOS user, because the app is not sandboxed: that user can copy the session into a browser. The limit applies to the user himself, not to third parties. A signature on every call is a later step if needed.</limit>
+      <limit>The site cannot prove that the caller is the GenroApp binary: any secret inside the app can be extracted. A user who knows his password can write a script that registers a software key instead of the secure hardware. On macOS the site cannot tell the two apart, because Secure Enclave keys have no attestation outside MDM. Like the cookie, this limit applies to the user himself.</limit>
+    </section>
+
+    <section title="Changes by repository" id="s-changes">
+      <table title="Work to do">
+        <row head="true"><cell>Repository</cell><cell>Change</cell></row>
+        <row><cell>GenroApp</cell><cell>Window and menu item "Aggiungi sito"; list of saved sites with user and key reference; check of signature, origin and expiry of the RunDoc read from the site; native commands to create a key for an origin and a user, sign a challenge after the biometric reading, list and delete keys (macOS now, Windows next).</cell></row>
+        <row><cell>GenroPy</cell><cell>Table <c>adm.user_device</c>; registration RPC; challenge and verify step in <c>login_checkAvatar</c>, next to the OTP step; tag <c>_DEVICE_</c> on the connection; preferences for the login mode, for who must use the app and for the password fallback; a page where users see and revoke their devices.</cell></row>
+        <row><cell>GenroPy user settings</cell><cell>The <c>apps</c> formlet of branch <c>feature/genroapp-download</c> keeps the GenroApp download and gains the device list. The RunDoc download link goes away: the app reads the RunDoc by itself.</cell></row>
+        <row><cell>Softwell CI</cell><cell>Sign the RunDoc of each paying site at deploy and at every renewal, with the expiry, and write it to <c>site:genroapp/connection.rundoc</c>.</cell></row>
+      </table>
+    </section>
+  </solution>
+
+  <decisions>
+    <decision id="d-mode" status="open">
+      <question>What does a valid device signature do at login?</question>
+      <option id="alone" title="Signature alone"><p>The signature is the whole login. No password.</p></option>
+      <option id="with-password" title="Signature plus password"><p>The user is fixed from the key and shown in a div; the password is still asked.</p></option>
+      <option id="preference" title="Site preference"><p>Each site chooses one of the two.</p></option>
+    </decision>
+    <decision id="d-expiry" status="open">
+      <question>How does a RunDoc expire?</question>
+      <option id="expires-field" title="Signed expiry in the payload"><p>A field <c>expires</c> in a new payload format <c>v2</c>. GenroApp 0.1.0 rejects it, so every user must update the app.</p></option>
+      <option id="revocation-list" title="Revocation list"><p>GenroApp downloads from Softwell a list of revoked sites, signed with the same key. The RunDoc format does not change.</p></option>
+    </decision>
+    <decision id="d-biometry" status="open">
+      <question>On macOS, must the signature require the finger only, or also accept the Mac password?</question>
+      <option id="finger" title="Finger only"><p>Access control <c>biometryCurrentSet</c>. A Mac without Touch ID cannot register.</p></option>
+      <option id="finger-or-password" title="Finger or Mac password"><p>Access control <c>userPresence</c>. Works on every Mac, but a known Mac password is enough. Windows Hello always behaves like this, because it accepts the device PIN.</p></option>
+    </decision>
+    <decision id="d-os-user" status="open">
+      <question>Does the signed login carry the operating system user?</question>
+      <option id="hashed" title="Hashed, for audit"><p>A hash of the OS username with a salt per site. The site logs it and compares it with the one stored at registration. It is declared by the app, not proved by the OS.</p></option>
+      <option id="no" title="No"><p>The key already belongs to one OS account; the site logs only the device name.</p></option>
+    </decision>
+    <decision id="d-fido2" status="open">
+      <question>When Linux comes, must FIDO2 keys be limited to models with a fingerprint reader?</question>
+      <option id="attestation" title="Check the attestation"><p>At registration the site checks the manufacturer certificate of the key against a list of allowed models.</p></option>
+      <option id="any" title="Any FIDO2 key"><p>The flag UV is accepted as is; on a key without reader it means the key PIN, not a finger.</p></option>
+    </decision>
+  </decisions>
+
+  <consequences>
+    <list>
+      <item>The user never handles a RunDoc file: adding a site means typing its address.</item>
+      <item>Softwell decides which sites may be used in GenroApp, and until when.</item>
+      <item>A stolen password is useless without the registered computer and the biometric reading.</item>
+      <item>A lost or replaced computer needs a new registration, done with password or by an administrator.</item>
+      <item>The commands that use the secure hardware require the app signed with the Softwell team identifier, as it already is for notarization.</item>
+    </list>
+  </consequences>
+
+  <related>
+    <doc id="booklet/genropy-runner" type="booklet">GenroApp: a desktop window with card signing</doc>
+    <doc id="proposal/device-sidecar" type="proposal">Local devices through a Python sidecar</doc>
+  </related>
+</proposal>
