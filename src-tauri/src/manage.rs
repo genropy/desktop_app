@@ -1,5 +1,5 @@
-//! The window "Gestione": the saved sites, a local test of the device key and, in builds with the feature
-//! `devices`, the signature cards.
+//! The window "Gestione": the saved sites and a local test of the device key. The signature cards are in the
+//! menu "Firma digitale" (`cards.rs`).
 //!
 //! Its commands are granted only to this local window (`capabilities/manage.json`), never to a site page.
 use ring::rand::{SecureRandom, SystemRandom};
@@ -28,14 +28,14 @@ pub fn open(app: &AppHandle) -> tauri::Result<()> {
 
 #[derive(Serialize)]
 pub struct Features {
-    /// Signature cards (PKCS#11): only in builds with the feature `devices`.
-    cards: bool,
     platform: &'static str,
+    /// Downloaded Python modules: only in builds with the feature `sidecar`.
+    modules: bool,
 }
 
 #[tauri::command]
 pub fn manage_features() -> Features {
-    Features { cards: cfg!(feature = "devices"), platform: device_key::PLATFORM }
+    Features { platform: device_key::PLATFORM, modules: cfg!(feature = "sidecar") }
 }
 
 #[derive(Serialize)]

@@ -10,9 +10,11 @@ name = "genropy_runner_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [features]
-default = ["devices"]
-# The Python sidecar and card signing (PKCS#11). The distributed site runner is built without it.
-devices = ["dep:cryptoki", "dep:x509-parser"]
+default = ["cards", "sidecar"]
+# Card signing (PKCS#11): the card commands, the PIN window and the menu "Firma digitale".
+cards = ["dep:cryptoki", "dep:x509-parser"]
+# The Python sidecar and `device_call`. Only the "industry" build has it; the distributed site runner does not.
+sidecar = []
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
@@ -21,6 +23,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["image-png"] }
 tauri-plugin-window-state = "2"
 tauri-plugin-updater = "2"
+tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 cryptoki = { version = "0.12.1", optional = true }
@@ -34,8 +37,6 @@ reqwest = { version = "0.13", default-features = false, features = ["rustls-no-p
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 # The answers of the fiscal cash registers (fpmate.cgi).
 quick-xml = "0.42"
-# The confirmation before the daily closure of a cash register.
-tauri-plugin-dialog = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 objc2 = "0.6"

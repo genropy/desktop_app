@@ -148,34 +148,28 @@ async function loadRegisters() {
   }
 }
 
-async function loadCards() {
-  const body = document.querySelector('#cards');
+async function loadModules() {
+  const body = document.querySelector('#modules');
   body.replaceChildren();
-  const cards = await invoke('card_list');
-  if (!cards.length) {
+  const modules = await invoke('manage_modules');
+  if (!modules.length) {
     const row = document.createElement('tr');
-    cell(row, 'Nessuna carta nei lettori.').colSpan = 4;
+    cell(row, 'Nessun modulo installato.').colSpan = 4;
     body.append(row);
   }
-  for (const card of cards) {
+  for (const module of modules) {
     const row = document.createElement('tr');
-    cell(row, card.holder, small(card.serial));
-    cell(row, card.valid_until);
-    cell(row, card.open ? 'aperta' : 'chiusa');
+    cell(row, module.name);
+    cell(row, module.version);
+    cell(row, ...module.origins.flatMap((origin, i) => i ? [document.createElement('br'), small(origin)] : [small(origin)]));
     const actions = cell(row);
     actions.className = 'actions';
-    actions.append(button('Prova firma', async () => {
-      const result = await invoke('card_test', { card: card.fingerprint });
-      await loadCards();
-      return result;
+    actions.append(button('Rimuovi', async () => {
+      if (!confirm(`Rimuovere il modulo ${module.name}? Un sito che lo offre lo scarica di nuovo alla prossima apertura.`)) return;
+      await invoke('manage_remove_module', { name: module.name });
+      await loadModules();
+      return 'Modulo rimosso.';
     }));
-    if (card.open) {
-      actions.append(button('Chiudi', async () => {
-        await invoke('card_close', { card: card.fingerprint });
-        await loadCards();
-        return 'Carta chiusa.';
-      }));
-    }
     body.append(row);
   }
 }
@@ -184,11 +178,14 @@ async function loadCards() {
   try {
     await loadSites();
     await loadRegisters();
-    const features = await invoke('manage_features');
-    if (features.cards) {
-      document.querySelector('#cards-section').hidden = false;
-      document.querySelector('#refresh-cards').onclick = () => loadCards().catch((failure) => say(String(failure), true));
-      await loadCards();
+    if ((await invoke('manage_features')).modules) {
+      document.querySelector('#modules-section').hidden = false;
+      document.querySelector('#modules-actions').append(button('Aggiorna moduli', async () => {
+        const result = await invoke('manage_update_modules');
+        await loadModules();
+        return result;
+      }));
+      await loadModules();
     }
   } catch (failure) {
     say(String(failure), true);

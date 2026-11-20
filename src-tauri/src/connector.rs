@@ -22,18 +22,19 @@ pub struct Connection {
     pub icon: Option<String>,
 }
 
-pub fn verify(text: &str) -> Result<Connection, String> {
-    let key = option_env!("SOFTWELL_LINK_PUBLIC_KEY")
-        .ok_or("Questa build non contiene la chiave pubblica SoftWell.")?;
-    verify_with(text, key)
+/// The Softwell Ed25519 public key (base64) built into this binary.
+pub fn public_key() -> Result<&'static str, String> {
+    option_env!("SOFTWELL_LINK_PUBLIC_KEY").ok_or_else(|| "Questa build non contiene la chiave pubblica SoftWell.".into())
 }
 
-fn verify_with(text: &str, key: &str) -> Result<Connection, String> {
-    if text.len() > MAX_SIZE {
-        return Err("Collegamento troppo grande.".into());
-    }
+pub fn verify(text: &str) -> Result<Connection, String> {
+    verify_with(text, public_key()?)
+}
+
+/// The payload of a `{payload, signature}` envelope, after checking its Ed25519 signature with `key` (base64).
+pub fn signed_payload(text: &str, key: &str) -> Result<Vec<u8>, String> {
     let envelope: Envelope =
-        serde_json::from_str(text).map_err(|_| "Formato del collegamento non valido.")?;
+        serde_json::from_str(text).map_err(|_| "Formato del documento firmato non valido.")?;
     let payload = STANDARD
         .decode(envelope.payload)
         .map_err(|_| "Contenuto non valido.")?;
@@ -45,7 +46,15 @@ fn verify_with(text: &str, key: &str) -> Result<Connection, String> {
         .map_err(|_| "Chiave del runner non valida.")?;
     UnparsedPublicKey::new(&ED25519, public_key)
         .verify(&payload, &signature)
-        .map_err(|_| "Firma del collegamento non valida.")?;
+        .map_err(|_| "Firma SoftWell non valida.")?;
+    Ok(payload)
+}
+
+fn verify_with(text: &str, key: &str) -> Result<Connection, String> {
+    if text.len() > MAX_SIZE {
+        return Err("Collegamento troppo grande.".into());
+    }
+    let payload = signed_payload(text, key)?;
     let link: Connection =
         serde_json::from_slice(&payload).map_err(|_| "Contenuto del collegamento non valido.")?;
     let url = Url::parse(&link.url).map_err(|_| "Indirizzo non valido.")?;

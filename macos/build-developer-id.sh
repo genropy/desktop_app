@@ -1,6 +1,6 @@
 #!/bin/bash
 # Universal build of the site runner, signed Developer ID for direct distribution. Notarization is in release.sh.
-# The feature `devices` (Python sidecar, card signing) is left out.
+# With card signing (feature `cards`), without the Python sidecar (feature `sidecar`).
 #
 #   SOFTWELL_LINK_PUBLIC_KEY  base64 of the 32-byte Ed25519 public key that signs connection files;
 #                             default ~/.tauri/genroapp-link.pub.b64
@@ -13,11 +13,12 @@ if [[ -z "${SOFTWELL_LINK_PUBLIC_KEY:-}" ]]; then
     SOFTWELL_LINK_PUBLIC_KEY=$(tr -d '\n' < ~/.tauri/genroapp-link.pub.b64)
 fi
 export SOFTWELL_LINK_PUBLIC_KEY
-# Camera and microphone (Meetlot windows) and the keychain group of the device keys.
+# Camera and microphone (Meetlot windows), the keychain group of the device keys and the loading of the
+# PKCS#11 libraries of the card vendors.
 entitlements=src-tauri/GenroApp.entitlements
 cd src-tauri
 cargo tauri build --target universal-apple-darwin --bundles app \
-    --config '{"bundle":{"macOS":{"minimumSystemVersion":"10.15"}}}' -- --no-default-features
+    --config '{"bundle":{"macOS":{"minimumSystemVersion":"10.15"}}}' -- --no-default-features --features cards
 cd ..
 app=src-tauri/target/universal-apple-darwin/release/bundle/macos/GenroApp.app
 codesign --force --timestamp --options runtime --sign "$identity" --identifier it.softwell.genropy.runner \

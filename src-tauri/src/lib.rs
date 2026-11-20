@@ -1,34 +1,32 @@
-#[cfg(feature = "devices")]
+#[cfg(feature = "cards")]
 mod card;
+#[cfg(feature = "cards")]
+mod cards;
 mod connector;
 mod device_key;
 mod device_login;
-#[cfg(feature = "devices")]
-mod devices;
 mod documents;
 mod fiscal;
 mod local;
 mod manage;
+#[cfg(feature = "sidecar")]
+mod modules;
 use documents::{Document, Registry};
 #[cfg(target_os = "macos")]
 mod picker;
+mod printing;
 mod release;
-#[cfg(feature = "devices")]
+#[cfg(feature = "sidecar")]
 mod sidecar;
 mod sites;
 
 use std::fs;
-use std::io::Read;
-#[cfg(feature = "devices")]
-use std::io::ErrorKind;
-#[cfg(any(feature = "devices", not(target_os = "macos")))]
+use std::io::{ErrorKind, Read};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
-#[cfg(feature = "devices")]
 use serde::{Deserialize, Serialize};
 use tauri::menu::{IconMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
-#[cfg(feature = "devices")]
 use serde_json::Value;
 use tauri::{Emitter, AppHandle, Manager, RunEvent, State, Url, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
@@ -36,7 +34,6 @@ const SETUP: &str = "setup";
 const PIN: &str = "pin";
 
 /// Persisted in `<app config dir>/config.json`.
-#[cfg(feature = "devices")]
 #[derive(Default, Serialize, Deserialize)]
 struct Config {
     url: Option<String>,
@@ -49,15 +46,16 @@ struct Config {
     /// Lifetime of a card session after the PIN; default 240.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     session_minutes: Option<u64>,
+    /// Label printers for `print_zpl`: name → `tcp://<host>[:<port>]` or a raw CUPS queue (`printing.rs`).
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    label_printers: std::collections::BTreeMap<String, String>,
 }
 
-#[cfg(feature = "devices")]
 fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     let dir = app.path().app_config_dir().map_err(|e| e.to_string())?;
     Ok(dir.join("config.json"))
 }
 
-#[cfg(feature = "devices")]
 fn load_config(app: &AppHandle) -> Result<Config, String> {
     let path = config_path(app)?;
     match fs::read_to_string(&path) {
@@ -184,7 +182,10 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         &PredefinedMenuItem::minimize(app, Some("Riduci a icona"))?,
         &PredefinedMenuItem::close_window(app, Some("Chiudi finestra"))?,
     ])?;
-    Menu::with_items(app, &[&release::app_menu(app)?, &edit, &windows])
+    let menu = Menu::with_items(app, &[&release::app_menu(app)?, &edit, &windows])?;
+    #[cfg(feature = "cards")]
+    menu.append(&cards::menu(app)?)?;
+    Ok(menu)
 }
 
 /// The origin of the document window `label`.
@@ -208,6 +209,10 @@ fn docs_origins(app: &AppHandle) -> Vec<String> {
 }
 
 fn on_menu(app: &AppHandle, id: &str) -> tauri::Result<()> {
+    #[cfg(feature = "cards")]
+    if cards::on_menu(app, id) {
+        return Ok(());
+    }
     match id {
         label if label.starts_with("doc-") => documents::focus(app, label),
         id if id.starts_with("site:") => {
@@ -309,13 +314,14 @@ pub fn run() {
                 .with_denylist(&[SETUP, PIN, local::WINDOW, sites::WINDOW, sites::CHOOSER, manage::WINDOW])
                 .build(),
         )
-        .plugin(tauri_plugin_dialog::init())
         .manage(PendingConnection::default())
         .manage(Registry::default())
         .manage(release::Pending::default())
         .manage(sites::SiteError::default())
         .manage(device_login::Grants::default())
         .manage(fiscal::Registers::default())
+        .manage(printing::Grants::default())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             pending_connection,
             inspect_connection,
@@ -331,26 +337,33 @@ pub fn run() {
             manage::manage_forget,
             manage::manage_remove,
             manage::manage_test_key,
-            #[cfg(feature = "devices")]
-            devices::card_test,
             device_login::device_status,
             device_login::device_register,
             device_login::device_sign,
             device_login::device_forget,
-            #[cfg(feature = "devices")]
-            devices::pin_request,
-            #[cfg(feature = "devices")]
-            devices::pin_submit,
-            #[cfg(feature = "devices")]
-            devices::pin_cancel,
-            #[cfg(feature = "devices")]
-            devices::card_list,
-            #[cfg(feature = "devices")]
-            devices::card_sign,
-            #[cfg(feature = "devices")]
-            devices::card_close,
-            #[cfg(feature = "devices")]
-            devices::device_call,
+            printing::printer_list,
+            printing::print_pdf,
+            printing::print_zpl,
+            #[cfg(feature = "cards")]
+            cards::pin_request,
+            #[cfg(feature = "cards")]
+            cards::pin_submit,
+            #[cfg(feature = "cards")]
+            cards::pin_cancel,
+            #[cfg(feature = "cards")]
+            cards::card_list,
+            #[cfg(feature = "cards")]
+            cards::card_sign,
+            #[cfg(feature = "cards")]
+            cards::card_close,
+            #[cfg(feature = "sidecar")]
+            sidecar::device_call,
+            #[cfg(feature = "sidecar")]
+            modules::manage_modules,
+            #[cfg(feature = "sidecar")]
+            modules::manage_update_modules,
+            #[cfg(feature = "sidecar")]
+            modules::manage_remove_module,
             fiscal::fiscal_status,
             fiscal::fiscal_receipt,
             fiscal::fiscal_x_report,
@@ -385,13 +398,15 @@ pub fn run() {
                 drop(docs);
                 if changed { let _ = refresh_menu(window.app_handle()); }
             }
-            #[cfg(feature = "devices")]
-            devices::on_window_event(window, event);
+            #[cfg(feature = "cards")]
+            cards::on_window_event(window, event);
         })
         .setup(|app| {
             let handle = app.handle();
-            #[cfg(feature = "devices")]
-            devices::setup(handle)?;
+            #[cfg(feature = "cards")]
+            cards::setup(handle);
+            #[cfg(feature = "sidecar")]
+            sidecar::setup(handle)?;
             #[cfg(not(debug_assertions))]
             {
                 handle.plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -440,9 +455,9 @@ pub fn run() {
                 RunEvent::ExitRequested { code: None, api, .. } => api.prevent_exit(),
                 _ => (),
             }
-            #[cfg(feature = "devices")]
+            #[cfg(feature = "sidecar")]
             if let RunEvent::Exit = event {
-                devices::stop(app);
+                sidecar::stop(app);
             }
         });
 }
