@@ -64,12 +64,14 @@ pub fn open(app: &AppHandle, doc: Document) -> tauri::Result<()> {
     if app.get_webview_window(&label).is_some() {
         return focus(app, &label);
     }
-    #[cfg(feature = "devices")]
-    if !super::local::is_local(&url) {
-        super::devices::grant_card_commands(app, &url, &label)?;
-    }
+    // Only the pages of saved sites reach the commands of this computer.
     if matches!(super::sites::find(app, &url.origin().ascii_serialization()), Ok(Some(_))) {
         super::device_login::grant(app, &url, &label)?;
+        super::printing::grant(app, &url, &label)?;
+        #[cfg(feature = "cards")]
+        super::cards::grant(app, &url, &label)?;
+        #[cfg(feature = "sidecar")]
+        super::sidecar::grant(app, &url, &label)?;
     }
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title(&doc.name)

@@ -85,47 +85,9 @@ async function loadSites() {
   }
 }
 
-async function loadCards() {
-  const body = document.querySelector('#cards');
-  body.replaceChildren();
-  const cards = await invoke('card_list');
-  if (!cards.length) {
-    const row = document.createElement('tr');
-    cell(row, 'Nessuna carta nei lettori.').colSpan = 4;
-    body.append(row);
-  }
-  for (const card of cards) {
-    const row = document.createElement('tr');
-    cell(row, card.holder, small(card.serial));
-    cell(row, card.valid_until);
-    cell(row, card.open ? 'aperta' : 'chiusa');
-    const actions = cell(row);
-    actions.className = 'actions';
-    actions.append(button('Prova firma', async () => {
-      const result = await invoke('card_test', { card: card.fingerprint });
-      await loadCards();
-      return result;
-    }));
-    if (card.open) {
-      actions.append(button('Chiudi', async () => {
-        await invoke('card_close', { card: card.fingerprint });
-        await loadCards();
-        return 'Carta chiusa.';
-      }));
-    }
-    body.append(row);
-  }
-}
-
 (async () => {
   try {
     await loadSites();
-    const features = await invoke('manage_features');
-    if (features.cards) {
-      document.querySelector('#cards-section').hidden = false;
-      document.querySelector('#refresh-cards').onclick = () => loadCards().catch((failure) => say(String(failure), true));
-      await loadCards();
-    }
   } catch (failure) {
     say(String(failure), true);
   }

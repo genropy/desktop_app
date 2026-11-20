@@ -8,6 +8,10 @@
 	<true/>
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<!-- The PKCS#11 libraries of the signature cards (bit4id, Athena, OpenSC) are signed by their vendors: the
+	     hardened runtime refuses to load them without this. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
 	<!-- The device keys of the sites live in the data protection keychain, in this group. -->
 	<key>keychain-access-groups</key>
 	<array>
