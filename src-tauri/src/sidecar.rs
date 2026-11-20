@@ -16,18 +16,31 @@ use std::thread;
 
 use serde_json::{json, Value};
 use tauri::ipc::CapabilityBuilder;
-use tauri::{AppHandle, Emitter, Manager, State, Url};
+use tauri::{AppHandle, Emitter, Manager, State, Url, Webview};
 use tokio::sync::oneshot;
 
+use crate::modules::{self, Installed};
+
 type Pending = Arc<Mutex<HashMap<u64, oneshot::Sender<Result<Value, String>>>>>;
+
+/// One running sidecar process. A restart replaces it; the calls still waiting on the old one fail.
+struct Process {
+    child: Child,
+    stdin: ChildStdin,
+    pending: Pending,
+}
 
 pub struct Sidecar {
     /// Window labels that already received `device_call`.
     labels: Mutex<std::collections::HashSet<String>>,
-    child: Mutex<Child>,
-    stdin: Mutex<ChildStdin>,
-    pending: Pending,
+    app: AppHandle,
+    config: PathBuf,
+    process: Mutex<Process>,
+    /// The downloaded modules loaded by the running process.
+    installed: Mutex<Vec<Installed>>,
     next_id: AtomicU64,
+    /// Held while modules are downloaded or removed, so two updates never write the same folder.
+    pub updating: tokio::sync::Mutex<()>,
 }
 
 /// Debug: the Python sources through uv. Release: the PyInstaller executable that the
@@ -45,57 +58,90 @@ fn command() -> Result<Command, String> {
     }
 }
 
+/// Starts the process with `--module <name> <folder>` for each verified downloaded module.
+fn spawn(app: &AppHandle, config: &Path, installed: &[Installed]) -> Result<Process, String> {
+    let mut command = command()?;
+    command.arg("--config").arg(config);
+    for module in installed {
+        command.arg("--module").arg(&module.name).arg(&module.path);
+    }
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()
+        .map_err(|e| format!("cannot start the sidecar ({:?}): {e}", command.get_program()))?;
+    let stdin = child.stdin.take().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let pending: Pending = Arc::default();
+    let reader_pending = pending.clone();
+    let app = app.clone();
+    thread::spawn(move || {
+        for line in BufReader::new(stdout).lines() {
+            let Ok(line) = line else { break };
+            match serde_json::from_str::<Value>(&line) {
+                Ok(message) => dispatch(&app, &reader_pending, message),
+                Err(e) => eprintln!("[runner] sidecar line is not JSON ({e}): {line}"),
+            }
+        }
+        eprintln!("[runner] sidecar exited");
+        for (_, reply) in reader_pending.lock().unwrap().drain() {
+            let _ = reply.send(Err("sidecar exited".to_string()));
+        }
+    });
+    Ok(Process { child, stdin, pending })
+}
+
 impl Sidecar {
     pub fn start(app: AppHandle, config: &Path) -> Result<Self, String> {
-        let mut command = command()?;
-        let mut child = command
-            .arg("--config")
-            .arg(config)
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit())
-            .spawn()
-            .map_err(|e| format!("cannot start the sidecar ({:?}): {e}", command.get_program()))?;
-        let stdin = child.stdin.take().unwrap();
-        let stdout = child.stdout.take().unwrap();
-        let pending: Pending = Arc::default();
-        let reader_pending = pending.clone();
-        thread::spawn(move || {
-            for line in BufReader::new(stdout).lines() {
-                let Ok(line) = line else { break };
-                match serde_json::from_str::<Value>(&line) {
-                    Ok(message) => dispatch(&app, &reader_pending, message),
-                    Err(e) => eprintln!("[runner] sidecar line is not JSON ({e}): {line}"),
-                }
-            }
-            eprintln!("[runner] sidecar exited");
-            for (_, reply) in reader_pending.lock().unwrap().drain() {
-                let _ = reply.send(Err("sidecar exited".to_string()));
-            }
-        });
-        Ok(Self { labels: Mutex::default(), child: Mutex::new(child), stdin: Mutex::new(stdin), pending, next_id: AtomicU64::new(1) })
+        let installed = modules::load(&app);
+        let process = spawn(&app, config, &installed)?;
+        Ok(Self {
+            labels: Mutex::default(),
+            app,
+            config: config.to_path_buf(),
+            process: Mutex::new(process),
+            installed: Mutex::new(installed),
+            next_id: AtomicU64::new(1),
+            updating: tokio::sync::Mutex::new(()),
+        })
+    }
+
+    /// Stops the process and starts a new one with the modules installed now.
+    pub fn restart(&self) -> Result<(), String> {
+        let installed = modules::load(&self.app);
+        let mut process = self.process.lock().unwrap();
+        let _ = process.child.kill();
+        let _ = process.child.wait();
+        *process = spawn(&self.app, &self.config, &installed)?;
+        *self.installed.lock().unwrap() = installed;
+        Ok(())
+    }
+
+    pub fn installed(&self) -> Vec<Installed> {
+        self.installed.lock().unwrap().clone()
     }
 
     pub async fn call(&self, module: &str, method: &str, params: Value) -> Result<Value, String> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let (reply, answer) = oneshot::channel();
-        self.pending.lock().unwrap().insert(id, reply);
         let line = json!({"id": id, "module": module, "method": method, "params": params}).to_string();
-        let written = {
-            let mut stdin = self.stdin.lock().unwrap();
-            writeln!(stdin, "{line}").and_then(|_| stdin.flush())
-        };
-        if let Err(e) = written {
-            self.pending.lock().unwrap().remove(&id);
-            return Err(format!("cannot write to the sidecar: {e}"));
+        {
+            let mut process = self.process.lock().unwrap();
+            process.pending.lock().unwrap().insert(id, reply);
+            let written = writeln!(process.stdin, "{line}").and_then(|_| process.stdin.flush());
+            if let Err(e) = written {
+                process.pending.lock().unwrap().remove(&id);
+                return Err(format!("cannot write to the sidecar: {e}"));
+            }
         }
         answer.await.unwrap_or_else(|_| Err("sidecar exited".to_string()))
     }
 
     pub fn stop(&self) {
-        let mut child = self.child.lock().unwrap();
-        let _ = child.kill();
-        let _ = child.wait();
+        let mut process = self.process.lock().unwrap();
+        let _ = process.child.kill();
+        let _ = process.child.wait();
     }
 }
 
@@ -147,14 +193,18 @@ pub fn grant(app: &AppHandle, url: &Url, label: &str) -> tauri::Result<()> {
     Ok(())
 }
 
-/// Calls `module.method(**params)` in the Python sidecar.
+/// Calls `module.method(**params)` in the Python sidecar. A downloaded module answers only the origins of its
+/// signed manifest.
 #[tauri::command]
 pub async fn device_call(
     sidecar: State<'_, Sidecar>,
+    webview: Webview,
     module: String,
     method: String,
     params: Option<Value>,
 ) -> Result<Value, String> {
+    let origin = webview.url().map_err(|e| e.to_string())?.origin().ascii_serialization();
+    modules::may_call(&sidecar.installed(), &module, &origin)?;
     sidecar.call(&module, &method, params.unwrap_or(Value::Null)).await
 }
 

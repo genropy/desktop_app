@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "manage",
-  "description": "The local window Gestione: saved sites, and a local test of the device key.",
+  "description": "The local window Gestione: saved sites, a local test of the device key and the downloaded modules.",
   "windows": ["manage"],
   "permissions": [
     "core:default",
@@ -10,6 +10,9 @@
     "allow-manage-set-primary",
     "allow-manage-forget",
     "allow-manage-remove",
-    "allow-manage-test-key"
+    "allow-manage-test-key",
+    "allow-manage-modules",
+    "allow-manage-update-modules",
+    "allow-manage-remove-module"
   ]
 }

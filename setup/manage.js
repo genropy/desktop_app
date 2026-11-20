@@ -85,9 +85,44 @@ async function loadSites() {
   }
 }
 
+async function loadModules() {
+  const body = document.querySelector('#modules');
+  body.replaceChildren();
+  const modules = await invoke('manage_modules');
+  if (!modules.length) {
+    const row = document.createElement('tr');
+    cell(row, 'Nessun modulo installato.').colSpan = 4;
+    body.append(row);
+  }
+  for (const module of modules) {
+    const row = document.createElement('tr');
+    cell(row, module.name);
+    cell(row, module.version);
+    cell(row, ...module.origins.flatMap((origin, i) => i ? [document.createElement('br'), small(origin)] : [small(origin)]));
+    const actions = cell(row);
+    actions.className = 'actions';
+    actions.append(button('Rimuovi', async () => {
+      if (!confirm(`Rimuovere il modulo ${module.name}? Un sito che lo offre lo scarica di nuovo alla prossima apertura.`)) return;
+      await invoke('manage_remove_module', { name: module.name });
+      await loadModules();
+      return 'Modulo rimosso.';
+    }));
+    body.append(row);
+  }
+}
+
 (async () => {
   try {
     await loadSites();
+    if ((await invoke('manage_features')).modules) {
+      document.querySelector('#modules-section').hidden = false;
+      document.querySelector('#modules-actions').append(button('Aggiorna moduli', async () => {
+        const result = await invoke('manage_update_modules');
+        await loadModules();
+        return result;
+      }));
+      await loadModules();
+    }
   } catch (failure) {
     say(String(failure), true);
   }
