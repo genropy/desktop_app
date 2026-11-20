@@ -10,6 +10,8 @@ MODULES = {}
 
 def module(name):
     def register(cls):
+        if name in MODULES:
+            raise ValueError('module %s is already registered' % name)
         cls.module_name = name
         MODULES[name] = cls
         return cls

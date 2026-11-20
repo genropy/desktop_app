@@ -8,6 +8,8 @@ mod device_login;
 mod documents;
 mod local;
 mod manage;
+#[cfg(feature = "sidecar")]
+mod modules;
 use documents::{Document, Registry};
 #[cfg(target_os = "macos")]
 mod picker;
@@ -353,7 +355,13 @@ pub fn run() {
             #[cfg(feature = "cards")]
             cards::card_close,
             #[cfg(feature = "sidecar")]
-            sidecar::device_call
+            sidecar::device_call,
+            #[cfg(feature = "sidecar")]
+            modules::manage_modules,
+            #[cfg(feature = "sidecar")]
+            modules::manage_update_modules,
+            #[cfg(feature = "sidecar")]
+            modules::manage_remove_module
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {

@@ -29,11 +29,13 @@ pub fn open(app: &AppHandle) -> tauri::Result<()> {
 #[derive(Serialize)]
 pub struct Features {
     platform: &'static str,
+    /// Downloaded Python modules: only in builds with the feature `sidecar`.
+    modules: bool,
 }
 
 #[tauri::command]
 pub fn manage_features() -> Features {
-    Features { platform: device_key::PLATFORM }
+    Features { platform: device_key::PLATFORM, modules: cfg!(feature = "sidecar") }
 }
 
 #[derive(Serialize)]

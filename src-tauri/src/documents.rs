@@ -72,6 +72,8 @@ pub fn open(app: &AppHandle, doc: Document) -> tauri::Result<()> {
         super::cards::grant(app, &url, &label)?;
         #[cfg(feature = "sidecar")]
         super::sidecar::grant(app, &url, &label)?;
+        #[cfg(feature = "sidecar")]
+        super::modules::update_in_background(app, &url);
     }
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title(&doc.name)

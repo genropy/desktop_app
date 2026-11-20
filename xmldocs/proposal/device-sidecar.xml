@@ -19,8 +19,8 @@
       <item><b>Mobile</b>: Android and iOS apps are built with Capacitor.</item>
     </list>
     <fact source="sidecar/main.py:21 (commit 3e3f520)" method="read" verified="2026-11-20">The sidecar imports its modules with <c>import modules</c> at start. The modules are <c>system</c> and <c>inbox</c>, in <c>sidecar/modules/</c>.</fact>
-    <fact source="src-tauri/src/sidecar.rs:30-41 (commit 3e3f520)" method="read" verified="2026-11-20">A release build runs the PyInstaller executable <c>genropy-sidecar</c> placed next to the shell executable: the modules are frozen inside it at build time.</fact>
-    <fact source="macos/build-developer-id.sh (commit 18a5bb9)" method="read" verified="2026-11-20">The distributed macOS build passes <c>--no-default-features</c>: it has neither the sidecar nor the card commands.</fact>
+    <fact source="src-tauri/src/sidecar.rs:46-59 (commit 79b0481)" method="read" verified="2026-11-20">A release build runs the PyInstaller executable <c>genropy-sidecar</c> placed next to the shell executable: the built-in modules are frozen inside it at build time.</fact>
+    <fact source="macos/build-developer-id.sh:21 (commit 29cb987)" method="read" verified="2026-11-20">The distributed macOS build passes <c>--no-default-features --features cards</c>: it has the card commands and not the sidecar. The Cargo feature <c>sidecar</c> holds the sidecar, <c>device_call</c> and the downloaded modules.</fact>
   </current>
 
   <solution>
@@ -127,6 +127,30 @@ class Printers(object):
       <limit>On macOS a module with native libraries (<c>.so</c>, <c>.dylib</c>) loads only if those libraries are signed with the Softwell Developer ID: the hardened runtime refuses unsigned libraries, and the app keeps that check. Pure Python modules have no such limit.</limit>
       <limit>Third-party libraries of a module travel in its package. The frozen sidecar holds only the standard library and the libraries of the built-in modules.</limit>
       <p>The window Gestione of GenroApp lists the installed modules with version and origins, and removes one.</p>
+
+      <section title="Implemented in GenroApp" id="s-modules-implemented">
+        <p>Pull request genropy/desktop_app#3, commit <c>79b0481</c>, built with the Cargo feature <c>sidecar</c>. The manifest is the payload of a <c>{payload, signature}</c> envelope, the same envelope as the RunDoc:</p>
+        <code lang="json"><![CDATA[{"format": "it.softwell.genroapp.module/v1", "name": "scale", "version": "1.2.0",
+ "origins": ["https://app.acme.com"],
+ "files": {"scale/__init__.py": "<sha256 hex>", "serial/__init__.py": "<sha256 hex>"}}]]></code>
+        <table title="Addresses a saved site serves">
+          <row head="true"><cell>Request</cell><cell>Answer</cell></row>
+          <row><cell><c>GET /_tools/modules</c></cell><cell>JSON array of the signed manifests of the site, at most 1 MiB. <c>404</c> = no modules.</cell></row>
+          <row><cell><c>GET /_tools/modules/&lt;name&gt;/&lt;version&gt;/&lt;path&gt;</c></cell><cell>The bytes of one file of the package, at most 64 MiB.</cell></row>
+        </table>
+        <fact source="src-tauri/src/modules.rs:94-121 (commit 79b0481)" method="test" verified="2026-11-20">A manifest is accepted only with a valid Softwell signature, a lowercase Python name other than <c>system</c> and <c>inbox</c>, file paths without <c>..</c>, absolute parts or <c>manifest.json</c>, SHA-256 hashes in hex and HTTPS origins with no path.</fact>
+        <fact source="src-tauri/src/modules.rs:293-323 (commit 79b0481)" method="read" verified="2026-11-20">GenroApp refuses a module whose manifest does not list the origin of the site that offers it, and does not download again a name and version already installed.</fact>
+        <fact source="src-tauri/src/modules.rs:134-169 (commit 79b0481)" method="test" verified="2026-11-20">A package is written to <c>&lt;app config dir&gt;/modules/&lt;name&gt;/&lt;version&gt;/</c>, with the envelope as <c>manifest.json</c>, only when every file matches its hash. A new version removes the older ones.</fact>
+        <fact source="src-tauri/src/modules.rs:195-217 (commit 79b0481)" method="test" verified="2026-11-20">At every start of the sidecar the signature and the hashes are checked again. A folder with a changed file or a file outside the manifest is not loaded.</fact>
+        <fact source="src-tauri/src/modules.rs:253-260, src-tauri/src/sidecar.rs:207 (commit 79b0481)" method="test" verified="2026-11-20"><c>device_call</c> refuses a downloaded module to a page whose origin is not in its manifest. The built-in modules answer every origin that received <c>device_call</c>.</fact>
+        <fact source="sidecar/main.py:73-97 (commit 79b0481)" method="test" verified="2026-11-20">The sidecar receives <c>--module &lt;name&gt; &lt;folder&gt;</c> for each verified folder, appends the folder to <c>sys.path</c> and imports the package after its own modules. It drops a package that registers another name, a name already registered, or that is imported from outside its folder, such as a name of the standard library.</fact>
+        <fact source="sidecar/main.py:111 (commit 79b0481)" method="test" verified="2026-11-20">The sidecar writes no bytecode, so a module folder keeps matching its hashes.</fact>
+        <fact source="src-tauri/src/documents.rs:76, src-tauri/src/modules.rs:346-394 (commit 79b0481)" method="read" verified="2026-11-20">GenroApp downloads the modules of a saved site in the background when its window opens. The window Gestione lists the installed modules, downloads them from every saved site with "Aggiorna moduli" and removes one. Each install or removal restarts the sidecar.</fact>
+        <fact source="scripts/sign-module.py (commit 79b0481)" method="test" verified="2026-11-20"><c>scripts/sign-module.py</c> builds <c>&lt;output&gt;/&lt;name&gt;/&lt;version&gt;/</c> with the files and the signed <c>manifest.json</c>, skipping <c>__pycache__</c> and <c>.pyc</c>.</fact>
+        <limit>GenroPy does not serve <c>/_tools/modules</c> yet. GenroApp has not been run against a site that serves a real package.</limit>
+        <limit>Two sites that offer the same module name in different versions replace each other's version at every opening. Softwell assigns the names.</limit>
+        <limit>A module the site stops offering stays installed until the user removes it in Gestione.</limit>
+      </section>
     </section>
 
     <section title="Built-in devices and downloaded modules">
