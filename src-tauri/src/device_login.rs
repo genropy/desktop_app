@@ -82,7 +82,7 @@ pub fn signed_bytes(origin: &str, user: &str, challenge: &str) -> Result<Vec<u8>
 }
 
 /// The saved site of `origin`, when `origin` is also the origin of the calling page.
-fn caller_site(app: &AppHandle, webview: &Webview, origin: &str) -> Result<Site, String> {
+pub(crate) fn caller_site(app: &AppHandle, webview: &Webview, origin: &str) -> Result<Site, String> {
     let page = webview.url().map_err(|e| e.to_string())?.origin().ascii_serialization();
     if page != origin {
         return Err(format!("L'origine {origin} non è quella della pagina."));

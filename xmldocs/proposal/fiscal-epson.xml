@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<proposal id="proposal/fiscal-epson" title="Epson fiscal cash registers built into GenroApp" date="2026-11-20" lang="en" author="Giovanni Porcari" status="draft">
+<proposal id="proposal/fiscal-epson" title="Epson fiscal cash registers built into GenroApp" date="2026-11-20" lang="en" author="Giovanni Porcari" status="accepted">
   <problem>
     <p>A GenroPy page must print fiscal receipts and run the daily closure on a cash register of the shop. The page cannot reach the register by itself:</p>
     <list>
@@ -88,14 +88,15 @@
         <item>a box "HTTPS", for a register with SSL MODE 1 or 2;</item>
         <item>a button "Prova", which runs <c>queryPrinterStatus</c> and shows serial number, firmware and RT state.</item>
       </list>
+      <limit>The HTTPS client is rustls: it speaks TLS 1.2 and 1.3 only. A register with SSL MODE 1 that offers only an older version does not connect.</limit>
       <p>The configuration is saved in <c>&lt;app config dir&gt;/fiscal.json</c>, keyed by the origin of the site. The commands of this section are granted only to the window <c>manage</c> (<c>capabilities/manage.json</c>).</p>
     </section>
 
     <section title="Code">
       <list>
-        <item><c>src-tauri/src/fiscal.rs</c>: the four page commands, the grant, the configuration, the lock per register.</item>
+        <item><c>src-tauri/src/fiscal.rs</c>: the four page commands, the grant, the configuration, the lock per register, the pinned certificate, and the three commands <c>manage_fiscal_get</c>, <c>manage_fiscal_set</c>, <c>manage_fiscal_test</c> of Gestione.</item>
         <item><c>src-tauri/src/fiscal/epson.rs</c>: building the XML and reading the answer. No I/O, so the tests run without a register.</item>
-        <item><c>manage.rs</c>, <c>setup/manage.html</c>, <c>setup/manage.js</c>: the section of Gestione.</item>
+        <item><c>setup/manage.html</c>, <c>setup/manage.js</c>: the section of Gestione. <c>manage.rs</c>: removing a site also removes its register.</item>
         <item><c>lib.rs</c> (handler list), <c>build.rs</c> (command list), <c>documents.rs</c> (call to the grant), <c>capabilities/manage.json</c>, <c>Cargo.toml</c> (XML crate).</item>
       </list>
       <p>RCH and Custom get their own file beside <c>epson.rs</c> when they are written. A shared trait waits for the second register.</p>
@@ -112,35 +113,41 @@
   </solution>
 
   <decisions>
-    <decision id="d-fiscal-scope" status="proposed">
+    <decision id="d-fiscal-scope" status="decided">
       <question>What does the first version cover?</question>
       <option id="d-fiscal-scope-min" title="Status, receipt, X report, daily closure"><p>Sales and payments only. No discounts, refunds, voids, lottery code, customer tax code.</p></option>
       <option id="d-fiscal-scope-refund" title="Also refund and void"><p>Adds <c>printRecRefund</c> and the <c>REFUND</c> / <c>VOID</c> messages of the Guide §5.5. They need the number, date and serial of the original receipt.</p></option>
+      <choice option="d-fiscal-scope-min" by="GP" date="2026-11-20">Status, receipt, X report and daily closure. Refund and void come later.</choice>
     </decision>
-    <decision id="d-fiscal-key" status="proposed">
+    <decision id="d-fiscal-key" status="decided">
       <question>Is the register bound to a site or to the computer?</question>
       <option id="d-fiscal-key-site" title="One register per saved site"><p><c>fiscal.json</c> keyed by origin. Two sites on the same computer each name their register, also the same one.</p></option>
       <option id="d-fiscal-key-computer" title="One register per computer"><p>Every saved site uses it. Simpler to configure; a site that should not print can still print.</p></option>
+      <choice option="d-fiscal-key-site" by="GP" date="2026-11-20">One register per saved site, in fiscal.json keyed by origin.</choice>
     </decision>
-    <decision id="d-fiscal-tls" status="proposed">
+    <decision id="d-fiscal-tls" status="decided">
       <question>How does GenroApp trust the self-signed certificate of a register with HTTPS?</question>
       <option id="d-fiscal-tls-pin" title="Pin the certificate at the test"><p>"Prova" shows the SHA-256 fingerprint; the user confirms it and GenroApp saves it in <c>fiscal.json</c>. Later connections accept only that certificate. Needs a custom rustls verifier.</p></option>
       <option id="d-fiscal-tls-any" title="Accept any certificate"><p>Encryption without identity: another machine on the network can answer in place of the register.</p></option>
+      <choice option="d-fiscal-tls-pin" by="GP" date="2026-11-20">The certificate is pinned at the test in Gestione.</choice>
     </decision>
-    <decision id="d-fiscal-auth" status="proposed">
+    <decision id="d-fiscal-auth" status="decided">
       <question>What about a register with user and password (HTTP Digest)?</question>
       <option id="d-fiscal-auth-later" title="Not in the first version"><p>An answer 401 becomes the error "Il registratore chiede una password: non ancora supportato". Digest is added after a test on a real register.</p></option>
       <option id="d-fiscal-auth-now" title="Implement Digest now"><p>Written without a verified realm and algorithm, and without a register to test it.</p></option>
+      <choice option="d-fiscal-auth-later" by="GP" date="2026-11-20">No Digest authentication in the first version.</choice>
     </decision>
-    <decision id="d-fiscal-confirm" status="proposed">
+    <decision id="d-fiscal-confirm" status="decided">
       <question>Does GenroApp ask the user before the daily closure?</question>
       <option id="d-fiscal-confirm-yes" title="Native dialog before the Z report"><p>The closure cannot be undone. A dialog of GenroApp, not of the page, names the site and the register.</p></option>
       <option id="d-fiscal-confirm-no" title="The page decides"><p>The page already asks; GenroApp runs the command.</p></option>
+      <choice option="d-fiscal-confirm-yes" by="GP" date="2026-11-20">A native dialog of GenroApp before the Z report.</choice>
     </decision>
-    <decision id="d-fiscal-build" status="proposed">
+    <decision id="d-fiscal-build" status="decided">
       <question>Is the code always in the build, or behind a cargo feature?</question>
       <option id="d-fiscal-build-always" title="Always built"><p>No new dependency except an XML crate. It works in the distributed build, as <ref doc="proposal/device-sidecar" to="d-builtin">d-builtin</ref> requires.</p></option>
       <option id="d-fiscal-build-feature" title="Feature fiscal"><p>Fits the split of features under way in another branch. One more combination to build.</p></option>
+      <choice option="d-fiscal-build-always" by="GP" date="2026-11-20">Always built, no cargo feature.</choice>
     </decision>
   </decisions>
 

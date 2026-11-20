@@ -70,6 +70,7 @@ pub fn open(app: &AppHandle, doc: Document) -> tauri::Result<()> {
     }
     if matches!(super::sites::find(app, &url.origin().ascii_serialization()), Ok(Some(_))) {
         super::device_login::grant(app, &url, &label)?;
+        super::fiscal::grant(app, &url, &label)?;
     }
     WebviewWindowBuilder::new(app, &label, WebviewUrl::External(url))
         .title(&doc.name)

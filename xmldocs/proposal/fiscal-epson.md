@@ -1,7 +1,7 @@
 <!-- generated from fiscal-epson.xml by xmldocs: do not edit, edit the XML -->
 
 ## Epson fiscal cash registers built into GenroApp
-*Proposal · proposal/fiscal-epson · 2026-11-20 · draft*
+*Proposal · proposal/fiscal-epson · 2026-11-20 · accepted*
 
 ### Problem
 
@@ -94,13 +94,15 @@ The window Gestione gains a section "Registratore di cassa" for each saved site:
 - a box "HTTPS", for a register with SSL MODE 1 or 2;
 - a button "Prova", which runs `queryPrinterStatus` and shows serial number, firmware and RT state.
 
+- The HTTPS client is rustls: it speaks TLS 1.2 and 1.3 only. A register with SSL MODE 1 that offers only an older version does not connect.
+
 The configuration is saved in `<app config dir>/fiscal.json`, keyed by the origin of the site. The commands of this section are granted only to the window `manage` (`capabilities/manage.json`).
 
 #### Code
 
-- `src-tauri/src/fiscal.rs`: the four page commands, the grant, the configuration, the lock per register.
+- `src-tauri/src/fiscal.rs`: the four page commands, the grant, the configuration, the lock per register, the pinned certificate, and the three commands `manage_fiscal_get`, `manage_fiscal_set`, `manage_fiscal_test` of Gestione.
 - `src-tauri/src/fiscal/epson.rs`: building the XML and reading the answer. No I/O, so the tests run without a register.
-- `manage.rs`, `setup/manage.html`, `setup/manage.js`: the section of Gestione.
+- `setup/manage.html`, `setup/manage.js`: the section of Gestione. `manage.rs`: removing a site also removes its register.
 - `lib.rs` (handler list), `build.rs` (command list), `documents.rs` (call to the grant), `capabilities/manage.json`, `Cargo.toml` (XML crate).
 
 RCH and Custom get their own file beside `epson.rs` when they are written. A shared trait waits for the second register.
@@ -115,24 +117,30 @@ RCH and Custom get their own file beside `epson.rs` when they are written. A sha
 
 ### Decisions
 
-- **d-fiscal-scope** `proposed` — What does the first version cover?
+- **d-fiscal-scope** `decided` — What does the first version cover?
    1. **Status, receipt, X report, daily closure**: Sales and payments only. No discounts, refunds, voids, lottery code, customer tax code.
    2. **Also refund and void**: Adds `printRecRefund` and the `REFUND` / `VOID` messages of the Guide §5.5. They need the number, date and serial of the original receipt.
-- **d-fiscal-key** `proposed` — Is the register bound to a site or to the computer?
+   → Choice: **Status, receipt, X report, daily closure** (GP, 2026-11-20) — Status, receipt, X report and daily closure. Refund and void come later.
+- **d-fiscal-key** `decided` — Is the register bound to a site or to the computer?
    1. **One register per saved site**: `fiscal.json` keyed by origin. Two sites on the same computer each name their register, also the same one.
    2. **One register per computer**: Every saved site uses it. Simpler to configure; a site that should not print can still print.
-- **d-fiscal-tls** `proposed` — How does GenroApp trust the self-signed certificate of a register with HTTPS?
+   → Choice: **One register per saved site** (GP, 2026-11-20) — One register per saved site, in fiscal.json keyed by origin.
+- **d-fiscal-tls** `decided` — How does GenroApp trust the self-signed certificate of a register with HTTPS?
    1. **Pin the certificate at the test**: "Prova" shows the SHA-256 fingerprint; the user confirms it and GenroApp saves it in `fiscal.json`. Later connections accept only that certificate. Needs a custom rustls verifier.
    2. **Accept any certificate**: Encryption without identity: another machine on the network can answer in place of the register.
-- **d-fiscal-auth** `proposed` — What about a register with user and password (HTTP Digest)?
+   → Choice: **Pin the certificate at the test** (GP, 2026-11-20) — The certificate is pinned at the test in Gestione.
+- **d-fiscal-auth** `decided` — What about a register with user and password (HTTP Digest)?
    1. **Not in the first version**: An answer 401 becomes the error "Il registratore chiede una password: non ancora supportato". Digest is added after a test on a real register.
    2. **Implement Digest now**: Written without a verified realm and algorithm, and without a register to test it.
-- **d-fiscal-confirm** `proposed` — Does GenroApp ask the user before the daily closure?
+   → Choice: **Not in the first version** (GP, 2026-11-20) — No Digest authentication in the first version.
+- **d-fiscal-confirm** `decided` — Does GenroApp ask the user before the daily closure?
    1. **Native dialog before the Z report**: The closure cannot be undone. A dialog of GenroApp, not of the page, names the site and the register.
    2. **The page decides**: The page already asks; GenroApp runs the command.
-- **d-fiscal-build** `proposed` — Is the code always in the build, or behind a cargo feature?
+   → Choice: **Native dialog before the Z report** (GP, 2026-11-20) — A native dialog of GenroApp before the Z report.
+- **d-fiscal-build** `decided` — Is the code always in the build, or behind a cargo feature?
    1. **Always built**: No new dependency except an XML crate. It works in the distributed build, as d-builtin (→ proposal/device-sidecar#d-builtin) requires.
    2. **Feature fiscal**: Fits the split of features under way in another branch. One more combination to build.
+   → Choice: **Always built** (GP, 2026-11-20) — Always built, no cargo feature.
 
 ### Consequences
 

@@ -29,6 +29,13 @@ fn main() {
         "manage_remove",
         "manage_test_key",
         "device_call",
+        "fiscal_status",
+        "fiscal_receipt",
+        "fiscal_x_report",
+        "fiscal_daily_closure",
+        "manage_fiscal_get",
+        "manage_fiscal_set",
+        "manage_fiscal_test",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest)).expect("failed to run tauri-build");
 }

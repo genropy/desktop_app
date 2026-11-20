@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "manage",
-  "description": "The local window Gestione: saved sites, a local test of the device key and the signature cards.",
+  "description": "The local window Gestione: saved sites, a local test of the device key and the signature cards and the fiscal cash registers.",
   "windows": ["manage"],
   "permissions": [
     "core:default",
@@ -13,6 +13,9 @@
     "allow-manage-test-key",
     "allow-card-list",
     "allow-card-test",
-    "allow-card-close"
+    "allow-card-close",
+    "allow-manage-fiscal-get",
+    "allow-manage-fiscal-set",
+    "allow-manage-fiscal-test"
   ]
 }

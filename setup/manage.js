@@ -79,7 +79,70 @@ async function loadSites() {
       if (!confirm(`Rimuovere ${site.name} da GenroApp? Anche la chiave di questo computer viene cancellata.`)) return;
       await invoke('manage_remove', { origin: site.origin });
       await loadSites();
+      await loadRegisters();
       return 'Sito rimosso.';
+    }));
+    body.append(row);
+  }
+}
+
+function statusText(status) {
+  const rt = status.rt;
+  return `Registratore raggiunto: firmware ${status.cpu_rel}, stato ${status.fp_status}, ` +
+    `RT ${rt.rtMainStatus ?? '?'}/${rt.rtSubStatus ?? '?'}, giornata ${rt.rtDailyOpen === '1' ? 'aperta' : 'chiusa'}.`;
+}
+
+async function loadRegisters() {
+  const body = document.querySelector('#registers');
+  body.replaceChildren();
+  const sites = await invoke('manage_sites');
+  if (!sites.length) {
+    const row = document.createElement('tr');
+    cell(row, 'Nessun sito aggiunto.').colSpan = 4;
+    body.append(row);
+  }
+  for (const site of sites) {
+    const saved = await invoke('manage_fiscal_get', { origin: site.origin });
+    const row = document.createElement('tr');
+    cell(row, site.name, small(site.origin));
+    const host = document.createElement('input');
+    host.type = 'text';
+    host.placeholder = 'es. 192.168.1.50';
+    host.value = saved?.host ?? '';
+    const fingerprint = small(saved?.fingerprint ? `Certificato: ${saved.fingerprint}` : '');
+    fingerprint.className = 'fingerprint';
+    cell(row, host, fingerprint);
+    const https = document.createElement('input');
+    https.type = 'checkbox';
+    https.checked = saved?.https ?? false;
+    cell(row, https);
+    // The fingerprint seen by the last test of this host, to be confirmed by Salva.
+    let tested = null;
+    const changed = () => { tested = null; fingerprint.textContent = ''; };
+    host.oninput = changed;
+    https.onchange = changed;
+    const actions = cell(row);
+    actions.className = 'actions';
+    actions.append(button('Prova', async () => {
+      const result = await invoke('manage_fiscal_test', { host: host.value, https: https.checked });
+      tested = result.fingerprint;
+      let text = statusText(result.status);
+      if (tested) {
+        fingerprint.textContent = `Certificato: ${tested}`;
+        if (saved?.fingerprint && saved.fingerprint !== tested) {
+          text += '\nATTENZIONE: il certificato è diverso da quello confermato. Salva solo se il registratore è stato riconfigurato.';
+        } else if (!saved?.fingerprint) {
+          text += '\nControlla l\'impronta del certificato sul registratore, poi premi Salva per confermarla.';
+        }
+      }
+      return text;
+    }));
+    actions.append(button('Salva', async () => {
+      const unchanged = saved && saved.host === host.value.trim() && saved.https === https.checked;
+      const confirmed = tested ?? (unchanged ? saved.fingerprint ?? null : null);
+      await invoke('manage_fiscal_set', { origin: site.origin, host: host.value, https: https.checked, fingerprint: confirmed });
+      await loadRegisters();
+      return host.value.trim() ? 'Registratore salvato.' : 'Registratore rimosso.';
     }));
     body.append(row);
   }
@@ -120,6 +183,7 @@ async function loadCards() {
 (async () => {
   try {
     await loadSites();
+    await loadRegisters();
     const features = await invoke('manage_features');
     if (features.cards) {
       document.querySelector('#cards-section').hidden = false;

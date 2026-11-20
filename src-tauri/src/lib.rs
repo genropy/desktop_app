@@ -6,6 +6,7 @@ mod device_login;
 #[cfg(feature = "devices")]
 mod devices;
 mod documents;
+mod fiscal;
 mod local;
 mod manage;
 use documents::{Document, Registry};
@@ -308,11 +309,13 @@ pub fn run() {
                 .with_denylist(&[SETUP, PIN, local::WINDOW, sites::WINDOW, sites::CHOOSER, manage::WINDOW])
                 .build(),
         )
+        .plugin(tauri_plugin_dialog::init())
         .manage(PendingConnection::default())
         .manage(Registry::default())
         .manage(release::Pending::default())
         .manage(sites::SiteError::default())
         .manage(device_login::Grants::default())
+        .manage(fiscal::Registers::default())
         .invoke_handler(tauri::generate_handler![
             pending_connection,
             inspect_connection,
@@ -347,7 +350,14 @@ pub fn run() {
             #[cfg(feature = "devices")]
             devices::card_close,
             #[cfg(feature = "devices")]
-            devices::device_call
+            devices::device_call,
+            fiscal::fiscal_status,
+            fiscal::fiscal_receipt,
+            fiscal::fiscal_x_report,
+            fiscal::fiscal_daily_closure,
+            fiscal::manage_fiscal_get,
+            fiscal::manage_fiscal_set,
+            fiscal::manage_fiscal_test
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
